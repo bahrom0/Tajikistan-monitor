@@ -1,0 +1,22 @@
+{
+  "source": "https://mmih.adlia.tj/Search/DocumentView?DocumentId=118856",
+  "aliases": {
+    "city-khujand": ["Ленинабад", "Ленинобод"],
+    "city-bokhtar": ["Курган-Тюбе", "Кургантюбе", "Қӯрғонтеппа"],
+    "city-istaravshan": ["Ура-Тюбе", "Уротеппа", "Ӯротеппа"],
+    "city-panjakent": ["Пенджикент", "Пенжикент"],
+    "city-vahdat": ["Кофарнихон", "Кофарниган"],
+    "city-tursunzoda": ["Регар"],
+    "city-buston": ["Чкаловск", "Чкалов"],
+    "city-guliston": ["Кайраккум", "Қайроққум"],
+    "city-levakant": ["Сарбанд"],
+    "district-dusti": ["Джиликульский район", "Ноҳияи Ҷиликӯл"],
+    "district-jayhun": ["Кумсангирский район", "Ноҳияи Қумсангир"],
+    "district-kushoniyon": ["Бохтарский район", "Ноҳияи Бохтар"],
+    "district-jaloliddin-balkhi": ["Колхозабадский район", "Ноҳияи Колхозобод"],
+    "district-devashtich": ["Ганчинский район", "Ноҳияи Ғончӣ"],
+    "district-lakhsh": ["Джиргатальский район", "Ноҳияи Ҷиргатол"],
+    "district-sangvor": ["Тавильдаринский район", "Ноҳияи Тавилдара"],
+    "district-shamsiddin-shohin": ["Шуроабадский район", "Ноҳияи Шӯрообод"]
+  }
+}
