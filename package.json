@@ -1,0 +1,28 @@
+{
+  "name": "tajikistan-monitor-clean",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:client": "vite --configLoader runner",
+    "dev:server": "node --env-file-if-exists=.env --watch server/index.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs",
+    "build": "tsc --noEmit && vite build --configLoader runner",
+    "start": "node --env-file-if-exists=.env server/index.mjs",
+    "geodata:boundary": "node scripts/geodata/build-country-boundary.mjs",
+    "geodata:locations": "node scripts/geodata/build-locations.mjs",
+    "geodata:admin": "node scripts/geodata/build-admin-boundaries.mjs",
+    "geodata:validate": "node scripts/geodata/validate-geodata.mjs"
+  },
+  "dependencies": {
+    "maplibre-gl": "^5.16.0",
+    "preact": "^10.25.4"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  }
+}

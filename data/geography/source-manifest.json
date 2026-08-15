@@ -1,0 +1,25 @@
+{
+  "dataset_date": "2025-01-01",
+  "generated_on": "2026-08-14",
+  "official_hierarchy": {
+    "publisher": "Agency on Statistics under the President of the Republic of Tajikistan",
+    "url": "https://www.stat.tj/wp-content/uploads/2025/12/machmuai-shumorai-aholi-to-1.01.2025.pdf",
+    "license_note": "The Statistics Agency site requires attribution when materials are reused."
+  },
+  "legal_status": {
+    "publisher": "ADLIA, Ministry of Justice of the Republic of Tajikistan",
+    "url": "https://mmih.adlia.tj/Search/DocumentView?DocumentId=118856"
+  },
+  "coordinates_and_boundary": {
+    "publisher": "OpenStreetMap contributors via Geofabrik",
+    "url": "https://download.geofabrik.de/asia/tajikistan.html",
+    "license": "ODbL-1.0",
+    "attribution": "© OpenStreetMap contributors, Geofabrik"
+  },
+  "known_limitations": [
+    "The official 2025 publication has inconsistent aggregate totals for towns.",
+    "Only 60 towns explicitly named in the population table are published in locations.json.",
+    "Registry-only settlements stay out of the UI until their official names and parents are verified."
+  ]
+}
+
