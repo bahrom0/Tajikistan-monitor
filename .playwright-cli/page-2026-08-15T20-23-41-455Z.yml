@@ -1,0 +1,178 @@
+- generic [ref=f2e3]:
+  - banner [ref=f2e4]:
+    - generic [ref=f2e5]:
+      - generic [ref=f2e6]: TJ
+      - generic [ref=f2e7]:
+        - strong [ref=f2e8]: TAJIKISTAN MONITOR
+        - generic [ref=f2e9]: Национальная информационная панель
+    - generic [ref=f2e10]:
+      - generic [ref=f2e11]: СИСТЕМА АКТИВНА
+      - generic [ref=f2e13]:
+        - text: ИСТОЧНИКИ
+        - generic [ref=f2e14]: 0/3
+      - generic [ref=f2e15]: ОБНОВЛЕНИЕ 5 МИН
+    - button "ОБНОВЛЕНИЕ…" [disabled] [ref=f2e16] [cursor=pointer]
+  - main [ref=f2e17]:
+    - complementary [ref=f2e18]:
+      - generic [ref=f2e19]:
+        - generic [ref=f2e20]: СТАТУС ИСТОЧНИКОВ
+        - generic [ref=f2e21]: 0 ONLINE
+      - generic [ref=f2e23]:
+        - generic [ref=f2e25]:
+          - strong [ref=f2e26]: Подключение к API
+          - generic [ref=f2e27]: ожидание ответа
+        - generic [ref=f2e28]: —
+      - generic [ref=f2e29]: ОБЗОР
+      - generic [ref=f2e30]:
+        - generic [ref=f2e31]:
+          - generic [ref=f2e32]: НОВОСТЕЙ
+          - generic [ref=f2e33]: "0"
+        - generic [ref=f2e34]:
+          - generic [ref=f2e35]: ТРЕВОГ
+          - generic [ref=f2e36]: "0"
+        - generic [ref=f2e37]:
+          - generic [ref=f2e38]: ГОРОДОВ
+          - generic [ref=f2e39]: "16"
+        - generic [ref=f2e40]:
+          - generic [ref=f2e41]: РЕГИОНОВ
+          - generic [ref=f2e42]: "5"
+      - generic [ref=f2e43]: ЛЕГЕНДА КАРТЫ
+      - generic [ref=f2e44]:
+        - generic [ref=f2e45]: Город
+        - generic [ref=f2e47]: Столица
+        - generic [ref=f2e49]: Граница страны
+      - generic [ref=f2e51]:
+        - strong [ref=f2e52]: ТОЛЬКО ТАДЖИКИСТАН
+        - paragraph [ref=f2e53]: Глобальные военные, финансовые, авиационные и рекламные блоки удалены.
+    - generic [ref=f2e54]:
+      - generic [ref=f2e55]:
+        - application "Интерактивная карта Таджикистана" [ref=f2e56]:
+          - generic:
+            - region "Map" [ref=f2e57]
+            - button "Хорог, Хоруғ" [ref=f2e58] [cursor=pointer]
+            - button "Худжанд, Хуҷанд" [ref=f2e60] [cursor=pointer]
+            - button "Исфара, Исфара" [ref=f2e62] [cursor=pointer]
+            - button "Гулистон, Гулистон" [ref=f2e64] [cursor=pointer]
+            - button "Канибадам, Конибодом" [ref=f2e66] [cursor=pointer]
+            - button "Пенджикент, Панҷакент" [ref=f2e68] [cursor=pointer]
+            - button "Истаравшан, Истаравшан" [ref=f2e70] [cursor=pointer]
+            - button "Истиклол, Истиқлол" [ref=f2e72] [cursor=pointer]
+            - button "Бустон, Бӯстон" [ref=f2e74] [cursor=pointer]
+            - button "Бохтар, Бохтар" [ref=f2e76] [cursor=pointer]
+            - button "Куляб, Кӯлоб" [ref=f2e78] [cursor=pointer]
+            - button "Левакант, Левакант" [ref=f2e80] [cursor=pointer]
+            - button "Нурек, Норак" [ref=f2e82] [cursor=pointer]
+            - button "Душанбе, Душанбе" [ref=f2e84] [cursor=pointer]
+            - button "Вахдат, Ваҳдат" [ref=f2e86] [cursor=pointer]
+            - button "Гиссар, Ҳисор" [ref=f2e88] [cursor=pointer]
+            - button "Рогун, Роғун" [ref=f2e90] [cursor=pointer]
+            - button "Турсунзаде, Турсунзода" [ref=f2e92] [cursor=pointer]
+          - generic:
+            - generic:
+              - generic [ref=f2e94]:
+                - button "Zoom in" [ref=f2e95] [cursor=pointer]
+                - button "Zoom out" [ref=f2e97] [cursor=pointer]
+              - group [ref=f2e99]:
+                - generic "Toggle attribution" [ref=f2e100] [cursor=pointer]
+                - generic [ref=f2e101]:
+                  - link "© OpenStreetMap contributors" [ref=f2e102] [cursor=pointer]:
+                    - /url: https://www.openstreetmap.org/copyright
+                  - text: ·
+                  - link "Geofabrik" [ref=f2e103] [cursor=pointer]:
+                    - /url: https://download.geofabrik.de/asia/tajikistan.html
+        - generic [ref=f2e104]:
+          - button "Скрыть панель населённых пунктов" [expanded] [ref=f2e105] [cursor=pointer]:
+            - generic [ref=f2e106]: ›
+          - complementary "Слои и поиск по населённым пунктам" [ref=f2e107]:
+            - generic [ref=f2e108]:
+              - generic [ref=f2e109]: НАСЕЛЁННЫЕ ПУНКТЫ
+              - strong [ref=f2e110]: "78"
+            - group "Переключатели слоёв карты" [ref=f2e111]:
+              - button "Города 18" [pressed] [ref=f2e112] [cursor=pointer]:
+                - generic [ref=f2e114]: Города
+                - strong [ref=f2e115]: "18"
+              - button "Посёлки 60" [pressed] [ref=f2e116] [cursor=pointer]:
+                - generic [ref=f2e118]: Посёлки
+                - strong [ref=f2e119]: "60"
+            - generic [ref=f2e120]:
+              - generic [ref=f2e121]: Поиск мест
+              - searchbox "Поиск по русскому и таджикскому названию" [ref=f2e122]
+            - paragraph [ref=f2e123]: Ищите по русскому или таджикскому названию.
+            - generic [ref=f2e124]:
+              - generic [ref=f2e125]: "ИЕРАРХИЯ: РЕГИОН → РАЙОН"
+              - generic [ref=f2e126]:
+                - generic [ref=f2e127]: Регион / Вилоят
+                - combobox "Регион / Вилоят" [ref=f2e128]:
+                  - option "Все регионы / Ҳама вилоятҳо" [selected]
+                  - option "Горно-Бадахшанская автономная область · Вилояти Мухтори Кӯҳистони Бадахшон"
+                  - option "Согдийская область · Вилояти Суғд"
+                  - option "Хатлонская область · Вилояти Хатлон"
+                  - option "Душанбе · Душанбе"
+                  - option "Районы республиканского подчинения · Ноҳияҳои тобеи ҷумҳурӣ"
+              - generic [ref=f2e129]:
+                - generic [ref=f2e130]: Район / Ноҳия
+                - combobox "Район / Ноҳия" [ref=f2e131]:
+                  - option "Все районы / Ҳама ноҳияҳо" [selected]
+                  - option "Ванчский район · Ноҳияи Ванҷ"
+                  - option "Дарвазский район · Ноҳияи Дарвоз"
+                  - option "Ишкашимский район · Ноҳияи Ишкошим"
+                  - option "Мургабский район · Ноҳияи Мурғоб"
+                  - option "Рошткалинский район · Ноҳияи Роштқалъа"
+                  - option "Рушанский район · Ноҳияи Рӯшон"
+                  - option "Шугнанский район · Ноҳияи Шуғнон"
+                  - option "Айнинский район · Ноҳияи Айнӣ"
+                  - option "Аштский район · Ноҳияи Ашт"
+                  - option "Район Деваштич · Ноҳияи Деваштич"
+                  - option "Зафарабадский район · Ноҳияи Зафаробод"
+                  - option "Матчинский район · Ноҳияи Мастчоҳ"
+                  - option "Кухистони-Мастчохский район · Ноҳияи Кӯҳистони Мастчоҳ"
+                  - option "Спитаменский район · Ноҳияи Спитамен"
+                  - option "Джаббар-Расуловский район · Ноҳияи Ҷаббор Расулов"
+                  - option "Бободжон-Гафуровский район · Ноҳияи Бобоҷон Ғафуров"
+                  - option "Шахристанский район · Ноҳияи Шаҳристон"
+                  - option "Бальджуванский район · Ноҳияи Балҷувон"
+                  - option "Кушониёнский район · Ноҳияи Кӯшониён"
+                  - option "Вахшский район · Ноҳияи Вахш"
+                  - option "Восейский район · Ноҳияи Восеъ"
+                  - option "Дангаринский район · Ноҳияи Данғара"
+                  - option "Яванский район · Ноҳияи Ёвон"
+                  - option "Район Джалолиддина Балхи · Ноҳияи Ҷалолиддини Балхӣ"
+                  - option "Муминабадский район · Ноҳияи Мӯъминобод"
+                  - option "Район Мир Сайида Али Хамадони · Ноҳияи Мир Сайид Алии Ҳамадонӣ"
+                  - option "Район Носири Хусрава · Ноҳияи Носири Хусрав"
+                  - option "Пянджский район · Ноҳияи Панҷ"
+                  - option "Район Темурмалик · Ноҳияи Темурмалик"
+                  - option "Ховалингский район · Ноҳияи Ховалинг"
+                  - option "Фархорский район · Ноҳияи Фархор"
+                  - option "Хуросонский район · Ноҳияи Хуросон"
+                  - option "Район Дӯсти · Ноҳияи Дӯстӣ"
+                  - option "Кубодиёнский район · Ноҳияи Қубодиён"
+                  - option "Район Абдурахмона Джами · Ноҳияи Абдураҳмони Ҷомӣ"
+                  - option "Район Джайхун · Ноҳияи Ҷайҳун"
+                  - option "Шахритусский район · Ноҳияи Шаҳритӯс"
+                  - option "Район Шамсиддина Шохина · Ноҳияи Шамсиддин Шоҳин"
+                  - option "Варзобский район · Ноҳияи Варзоб"
+                  - option "Лахшский район · Ноҳияи Лахш"
+                  - option "Нурабадский район · Ноҳияи Нуробод"
+                  - option "Раштский район · Ноҳияи Рашт"
+                  - option "Сангворский район · Ноҳияи Сангвор"
+                  - option "Таджикабадский район · Ноҳияи Тоҷикобод"
+                  - option "Файзабадский район · Ноҳияи Файзобод"
+                  - option "Район Рудаки · Ноҳияи Рӯдакӣ"
+                  - option "Шахринавский район · Ноҳияи Шаҳринав"
+              - paragraph [ref=f2e132]: Выбранная территория подсвечивается по границам OpenStreetMap.
+            - paragraph [ref=f2e133]: Опубликованы 60 поимённо подтверждённых посёлков. Реестровые расхождения проверяются.
+            - paragraph [ref=f2e134]: Посёлки появляются при zoom 6.3+, чтобы не перегружать карту.
+      - generic [ref=f2e135]:
+        - text: ОПЕРАТИВНАЯ КАРТА
+        - heading "РЕСПУБЛИКА ТАДЖИКИСТАН" [level=1] [ref=f2e136]
+      - generic [ref=f2e137]: 38.8610° N 71.2761° E
+    - complementary [ref=f2e138]:
+      - generic [ref=f2e139]:
+        - generic [ref=f2e140]: ПОСЛЕДНИЕ НОВОСТИ
+        - generic [ref=f2e141]: "0"
+      - generic [ref=f2e142]:
+        - generic [ref=f2e143]: ⌕
+        - textbox "Поиск по новостям…" [ref=f2e144]
+      - button "Все" [ref=f2e146] [cursor=pointer]
+      - generic [ref=f2e147]: Загрузка официальных источников…
