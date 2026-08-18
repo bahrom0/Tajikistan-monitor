@@ -1,9 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { MarkdownContent } from './components/MarkdownContent';
-import { TajikistanMap, type GeographyFilter } from './components/TajikistanMap';
+import { TajikistanMap, type GeographyFilter, type LocationSummarySelection, type PlaceResearchSelection } from './components/TajikistanMap';
 import type { NewsItem, SourceStatus } from './types';
 
 const formatTime = (date: string) => new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }).format(new Date(date));
+type ResearchStage = { id: string; label: string; state: 'active' | 'done' | 'error' };
+type ResearchSource = { title: string; url: string; domain: string; favicon: string; publishedDate: string };
+type ResearchEvent =
+  | { type: 'status'; id: string; label: string }
+  | { type: 'sources'; items: ResearchSource[] }
+  | { type: 'token'; value: string }
+  | { type: 'error'; message: string }
+  | { type: 'done' };
 
 export function App() {
   const [news, setNews] = useState<NewsItem[]>([]);
@@ -12,8 +20,12 @@ export function App() {
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<NewsItem | null>(null);
+  const [locationSummary, setLocationSummary] = useState<LocationSummarySelection | null>(null);
+  const [placeResearch, setPlaceResearch] = useState<PlaceResearchSelection | null>(null);
   const [answer, setAnswer] = useState('');
   const [asking, setAsking] = useState(false);
+  const [researchStages, setResearchStages] = useState<ResearchStage[]>([]);
+  const [researchSources, setResearchSources] = useState<ResearchSource[]>([]);
   const aiRequest = useRef<AbortController | null>(null);
   const [geographyFilter, setGeographyFilter] = useState<GeographyFilter>({ regionId: 'all', districtId: 'all' });
 
@@ -37,14 +49,13 @@ export function App() {
   });
   const online = statuses.filter((source) => source.status === 'online').length;
 
-  const askAi = async () => {
-    if (!selected) return;
+  const streamAi = async (path: string, body: unknown, fallbackError: string) => {
     aiRequest.current?.abort();
     const controller = new AbortController();
     aiRequest.current = controller;
     setAsking(true); setAnswer('');
     try {
-      const response = await fetch('/api/ai/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(selected), signal: controller.signal });
+      const response = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: controller.signal });
       if (!response.ok) {
         const data = await response.json().catch(() => null) as { error?: string } | null;
         throw new Error(data?.error || `AI provider: HTTP ${response.status}`);
@@ -66,13 +77,90 @@ export function App() {
       if (tail) { received = true; setAnswer((current) => current + tail); }
       if (!received) setAnswer('Ответ не получен.');
     } catch (error) {
-      if (!controller.signal.aborted) setAnswer(error instanceof Error ? error.message : 'Сервис объяснений сейчас недоступен.');
+      if (!controller.signal.aborted) setAnswer(error instanceof Error ? error.message : fallbackError);
     } finally {
       if (aiRequest.current === controller) { aiRequest.current = null; setAsking(false); }
     }
   };
 
-  const closeAi = () => { aiRequest.current?.abort(); setSelected(null); setAsking(false); };
+  const askAi = async () => {
+    if (!selected) return;
+    await streamAi('/api/ai/explain', selected, 'Сервис объяснений сейчас недоступен.');
+  };
+
+  const streamPlaceResearch = async (selection: PlaceResearchSelection) => {
+    aiRequest.current?.abort();
+    const controller = new AbortController();
+    aiRequest.current = controller;
+    setAsking(true); setAnswer(''); setResearchStages([]); setResearchSources([]);
+    const acceptEvent = (event: ResearchEvent) => {
+      if (event.type === 'status') {
+        setResearchStages((current) => {
+          const previous = current.map((stage) => ({ ...stage, state: stage.state === 'error' ? 'error' as const : 'done' as const }));
+          const existing = previous.findIndex((stage) => stage.id === event.id);
+          const next = { id: event.id, label: event.label, state: 'active' as const };
+          if (existing >= 0) return previous.map((stage, index) => index === existing ? next : stage);
+          return [...previous, next];
+        });
+      } else if (event.type === 'sources') {
+        setResearchSources(event.items);
+      } else if (event.type === 'token') {
+        setAnswer((current) => current + event.value);
+      } else if (event.type === 'error') {
+        setResearchStages((current) => [...current.map((stage) => ({ ...stage, state: 'done' as const })), { id: 'error', label: event.message, state: 'error' }]);
+      } else if (event.type === 'done') {
+        setResearchStages((current) => current.map((stage) => ({ ...stage, state: stage.state === 'error' ? 'error' as const : 'done' as const })));
+      }
+    };
+    try {
+      const response = await fetch('/api/ai/place-research', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locationId: selection.locationId, periodDays: selection.periodDays }), signal: controller.signal,
+      });
+      if (!response.ok) {
+        const data = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(data?.error || `Place research: HTTP ${response.status}`);
+      }
+      if (!response.body) throw new Error('Браузер не получил поток исследования.');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        buffer += decoder.decode(value, { stream: !done });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) if (line.trim()) acceptEvent(JSON.parse(line) as ResearchEvent);
+        if (done) break;
+      }
+      if (buffer.trim()) acceptEvent(JSON.parse(buffer) as ResearchEvent);
+    } catch (error) {
+      if (!controller.signal.aborted) acceptEvent({ type: 'error', message: error instanceof Error ? error.message : 'Сервис исследования места недоступен.' });
+    } finally {
+      if (aiRequest.current === controller) { aiRequest.current = null; setAsking(false); }
+    }
+  };
+
+  const openLocationSummary = (selection: LocationSummarySelection) => {
+    setSelected(null);
+    setPlaceResearch(null);
+    setLocationSummary(selection);
+    void streamAi('/api/ai/location-summary', {
+      locationId: selection.locationId,
+      locationNameRu: selection.nameRu,
+      locationNameTg: selection.nameTg,
+      articles: selection.articles.map(({ title, description, sourceName, publishedAt, category, severity, url }) => ({ title, description, sourceName, publishedAt, category, severity, url })),
+    }, 'Сервис сумари сейчас недоступен.');
+  };
+
+  const openPlaceResearch = (selection: PlaceResearchSelection) => {
+    setSelected(null);
+    setLocationSummary(null);
+    setPlaceResearch(selection);
+    void streamPlaceResearch(selection);
+  };
+
+  const closeAi = () => { aiRequest.current?.abort(); setSelected(null); setLocationSummary(null); setPlaceResearch(null); setAnswer(''); setResearchStages([]); setResearchSources([]); setAsking(false); };
 
   return <div class="app-shell">
     <header class="topbar">
@@ -96,7 +184,7 @@ export function App() {
       </aside>
 
       <section class="map-stage">
-        <TajikistanMap news={filtered} onGeographyFilterChange={setGeographyFilter} />
+        <TajikistanMap news={filtered} onGeographyFilterChange={setGeographyFilter} onLocationSummary={openLocationSummary} onPlaceResearch={openPlaceResearch} />
         <div class="map-heading"><span>ОПЕРАТИВНАЯ КАРТА</span><h1>РЕСПУБЛИКА ТАДЖИКИСТАН</h1></div>
         <div class="map-badge">38.8610° N&nbsp;&nbsp; 71.2761° E</div>
       </section>
@@ -117,11 +205,24 @@ export function App() {
       </aside>
     </main>
 
-    {selected && <div class="modal-backdrop" onClick={closeAi}><section class="ai-modal" onClick={(event) => event.stopPropagation()}>
-      <button class="close" onClick={closeAi}>×</button><div class="ai-label">AI NEWS EXPLAINER</div><h2>{selected.title}</h2><p class="original">{selected.description || 'Описание отсутствует в RSS.'}</p>
-      {!answer && <button class="ai-button" onClick={() => void askAi()} disabled={asking}>{asking ? 'АНАЛИЗИРУЮ…' : 'ОБЪЯСНИТЬ ПРОСТЫМИ СЛОВАМИ'}</button>}
-      {answer && <div class="ai-answer" aria-live="polite"><div class="ai-answer-title">Понятное объяснение</div><MarkdownContent content={answer} /></div>}
-      {selected.url && <a href={selected.url} target="_blank" rel="noreferrer">Открыть официальный источник ↗</a>}
+    {(selected || locationSummary || placeResearch) && <div class="modal-backdrop" onClick={closeAi}><section class="ai-modal" onClick={(event) => event.stopPropagation()}>
+      <button class="close" onClick={closeAi}>×</button><div class="ai-label">{placeResearch ? 'AI PLACE RESEARCH' : locationSummary ? 'AI LOCATION SUMMARY' : 'AI NEWS EXPLAINER'}</div>
+      <h2>{placeResearch ? `Исследование: ${placeResearch.nameRu}` : locationSummary ? `Сумари: ${locationSummary.nameRu}` : selected?.title}</h2>
+      <p class="original">{placeResearch ? `${placeResearch.nameTg} · ${placeResearch.parentLabel} · период ${placeResearch.periodDays} дней` : locationSummary ? `${locationSummary.articles.length} публикаций${locationSummary.nameTg ? ` · ${locationSummary.nameTg}` : ''}` : selected?.description || 'Описание отсутствует в RSS.'}</p>
+      {!locationSummary && !placeResearch && !answer && <button class="ai-button" onClick={() => void askAi()} disabled={asking}>{asking ? 'АНАЛИЗИРУЮ…' : 'ОБЪЯСНИТЬ ПРОСТЫМИ СЛОВАМИ'}</button>}
+      {locationSummary && asking && !answer && <div class="ai-stream-status" role="status">СОБИРАЮ СУМАРИ ИЗ НОВОСТЕЙ…</div>}
+      {placeResearch && <div class="research-trace" aria-live="polite" aria-label="Ход веб-исследования">
+        <div class="research-trace-title"><span>EXA LIVE RESEARCH</span><b>{asking ? 'В ПРОЦЕССЕ' : researchStages.some((stage) => stage.state === 'error') ? 'ОШИБКА' : 'ГОТОВО'}</b></div>
+        <ol class="research-steps">{researchStages.map((stage) => <li class={stage.state} key={stage.id}><i aria-hidden="true" /><span>{stage.label}</span></li>)}</ol>
+        {!!researchSources.length && <div class="research-sources"><div class="research-sources-label">ПОСЕЩЁННЫЕ САЙТЫ · {researchSources.length}</div><div class="research-source-icons">
+          {researchSources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" title={source.title} aria-label={`Открыть источник ${source.domain}`}>
+            <span class="research-favicon"><b aria-hidden="true">{source.domain.slice(0, 1).toUpperCase()}</b>{source.favicon && <img src={source.favicon} alt="" width="22" height="22" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}</span>
+            <small>{source.domain}</small>
+          </a>)}
+        </div></div>}
+      </div>}
+      {answer && <div class="ai-answer" aria-live="polite"><div class="ai-answer-title">{placeResearch ? 'Ответ исследователя' : locationSummary ? 'Сумари новостей' : 'Понятное объяснение'}</div><MarkdownContent content={answer} /></div>}
+      {selected?.url && <a href={selected.url} target="_blank" rel="noreferrer">Открыть официальный источник ↗</a>}
     </section></div>}
   </div>;
 }

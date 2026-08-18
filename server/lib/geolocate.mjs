@@ -41,7 +41,13 @@ export function createGeolocator(locations, aliasDataset = { aliases: {} }) {
     for (const alias of aliases) register(locationId, alias, 'historical');
   }
 
-  const searchable = [...byAlias.entries()].sort((left, right) => right[0].length - left[0].length);
+  const searchable = [...byAlias.entries()]
+    .sort((left, right) => right[0].length - left[0].length)
+    .map(([alias, entries]) => ({
+      alias,
+      entries,
+      pattern: new RegExp(`(^|[^\\p{L}\\p{N}])(${escapeRegex(alias)})(?=$|[^\\p{L}\\p{N}])`, 'iu'),
+    }));
   const hierarchy = (location) => {
     let current = location;
     let regionId = location.type === 'region' ? location.id : null;
@@ -60,8 +66,8 @@ export function createGeolocator(locations, aliasDataset = { aliases: {} }) {
     for (const [field, rawText] of [['title', article.title], ['description', article.description]]) {
       const text = String(rawText || '');
       const normalizedText = normalize(text);
-      for (const [alias, entries] of searchable) {
-        const match = new RegExp(`(^|[^\\p{L}\\p{N}])(${escapeRegex(alias)})(?=$|[^\\p{L}\\p{N}])`, 'iu').exec(normalizedText);
+      for (const { entries, pattern } of searchable) {
+        const match = pattern.exec(normalizedText);
         if (!match) continue;
         const pointEntries = entries.filter(({ locationId }) => {
           const location = byId.get(locationId);
