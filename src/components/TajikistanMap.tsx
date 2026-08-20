@@ -103,6 +103,10 @@ const REGION_LABELS: Record<string, string> = {
 
 const INITIAL_MAP_CENTER: Position = [70.72, 38.55];
 const INITIAL_MAP_ZOOM = 5.15;
+const TAJIKISTAN_MAX_BOUNDS: maplibregl.LngLatBoundsLike = [
+  [65.0, 35.4], // Юго-западный угол (долгота, широта)
+  [76.8, 42.4], // Северо-восточный угол (долгота, широта)
+];
 
 const ringArea = (ring: Position[]) => ring.reduce((area, point, index) => {
   const next = ring[(index + 1) % ring.length];
@@ -250,11 +254,25 @@ const districts = locations.filter((location) => location.type === 'district');
 const pointLocations: LocationPoint[] = cities;
 const dushanbeCity = pointLocations.find((location) => location.id === 'city-dushanbe');
 const locationById = new Map<string, CanonicalLocation>(locations.map((location) => [location.id, location]));
-const CITY_VISIBILITY_ZOOM = 5.9;
-const CITY_LABEL_VISIBILITY_ZOOM = 6.85;
-const REGION_LABEL_MAX_ZOOM = 5.8;
-const DISTRICT_LABEL_MIN_ZOOM = 5.65;
-const DISTRICT_COLLISION_MAX_ZOOM = 7.5;
+const MAJOR_CITIES = new Set([
+  'city-dushanbe',
+  'city-khujand',
+  'city-bokhtar',
+  'city-kulob',
+  'city-khorugh',
+  'city-istaravshan',
+  'city-tursunzoda',
+  'city-panjakent',
+  'city-isfara',
+  'city-konibodom',
+]);
+
+const CITY_VISIBILITY_ZOOM = 5.2;
+const MAJOR_CITY_LABEL_ZOOM = 5.35;
+const ALL_CITY_LABEL_ZOOM = 5.95;
+const REGION_LABEL_MAX_ZOOM = 6.2;
+const DISTRICT_LABEL_MIN_ZOOM = 6.35;
+const DISTRICT_COLLISION_MAX_ZOOM = 8.0;
 
 const areaColorForParent = (parentId: string | null | undefined, theme: ThemeMode = 'dark') => {
   const palette = MAP_PALETTES[theme];
@@ -640,19 +658,26 @@ export function TajikistanMap({
   };
 
   const syncMarkerVisibility = () => {
+    const zoom = mapZoomRef.current;
     const state = viewStateRef.current;
     const alertLocationIds = state.alertsOnly ? getAlertLocationIds(newsItemsRef.current) : null;
     markerRegistryRef.current.forEach(({ marker, location }) => {
       const element = marker.getElement();
+      const isMajorCity = MAJOR_CITIES.has(location.id) || location.id === 'city-dushanbe';
       const layerVisible = state.showCities;
-      const zoomVisible = mapZoomRef.current >= CITY_VISIBILITY_ZOOM;
-      const alertMatch = !alertLocationIds || alertLocationIds.has(location.id) || (location.region_id && alertLocationIds.has(location.region_id)) || (location.district_id && alertLocationIds.has(location.district_id));
+      const minZoom = isMajorCity ? CITY_VISIBILITY_ZOOM : 5.6;
+      const zoomVisible = zoom >= minZoom;
+      const alertMatch = !alertLocationIds
+        || alertLocationIds.has(location.id)
+        || (location.region_id && alertLocationIds.has(location.region_id))
+        || (location.district_id && alertLocationIds.has(location.district_id));
       const visible = layerVisible && zoomVisible && isInHierarchy(location, state.regionId, state.districtId) && alertMatch;
-      // Душанбе is also an administrative region. Show its city label as soon
-      // as the city marker appears, so it can replace the region label cleanly.
+
       const showLabel = location.id === 'city-dushanbe'
-        ? mapZoomRef.current >= CITY_VISIBILITY_ZOOM
-        : mapZoomRef.current >= CITY_LABEL_VISIBILITY_ZOOM;
+        ? zoom >= CITY_VISIBILITY_ZOOM
+        : isMajorCity
+          ? zoom >= MAJOR_CITY_LABEL_ZOOM
+          : zoom >= ALL_CITY_LABEL_ZOOM;
 
       element.style.display = visible ? '' : 'none';
       element.tabIndex = visible ? 0 : -1;
@@ -666,47 +691,93 @@ export function TajikistanMap({
     const zoom = mapZoomRef.current;
     const state = viewStateRef.current;
     const alertLocationIds = state.alertsOnly ? getAlertLocationIds(newsItemsRef.current) : null;
-    administrativeLabelRegistryRef.current.forEach(({ element, type, locationId }) => {
-      const dushanbeCityReplacesRegionLabel = type === 'region'
+    administrativeLabelRegistryRef.current.forEach(({ element, type, locationId, priority }) => {
+      const isRegion = type === 'region';
+      const dushanbeCityReplacesRegionLabel = isRegion
         && locationId === 'region-dushanbe'
         && dushanbeCity !== undefined
         && viewStateRef.current.showCities
         && zoom >= CITY_VISIBILITY_ZOOM
         && isInHierarchy(dushanbeCity, viewStateRef.current.regionId, viewStateRef.current.districtId);
+
       const alertMatch = !alertLocationIds || alertLocationIds.has(locationId);
-      const visible = (type === 'region' || zoom >= DISTRICT_LABEL_MIN_ZOOM)
-        && !dushanbeCityReplacesRegionLabel
-        && alertMatch;
+
+      const isSelected = (isRegion ? state.regionId : state.districtId) === locationId
+        || state.selectedLocationId === locationId;
+
+      const minDistrictZoom = priority > 0.05
+        ? DISTRICT_LABEL_MIN_ZOOM
+        : priority > 0.02
+          ? 6.65
+          : 6.95;
+
+      const zoomVisible = isRegion
+        ? zoom < REGION_LABEL_MAX_ZOOM || isSelected
+        : zoom >= minDistrictZoom || isSelected;
+
+      const visible = zoomVisible && !dushanbeCityReplacesRegionLabel && alertMatch;
       element.style.display = visible ? '' : 'none';
       element.tabIndex = visible ? 0 : -1;
       element.setAttribute('aria-hidden', String(!visible));
-      element.classList.toggle('compact-admin-label', type === 'region' && zoom >= REGION_LABEL_MAX_ZOOM);
-      element.classList.toggle('is-selected', (
-        type === 'region' ? viewStateRef.current.regionId : viewStateRef.current.districtId
-      ) === locationId);
+      element.classList.toggle('compact-admin-label', isRegion && zoom >= REGION_LABEL_MAX_ZOOM);
+      element.classList.toggle('is-selected', isSelected);
     });
+
     if (administrativeLabelFrameRef.current !== null) {
       cancelAnimationFrame(administrativeLabelFrameRef.current);
     }
     administrativeLabelFrameRef.current = requestAnimationFrame(() => {
       const occupied: DOMRect[] = [];
+
+      markerRegistryRef.current.forEach(({ marker }) => {
+        const el = marker.getElement();
+        if (el.style.display === 'none') return;
+        const label = el.querySelector('.marker-label');
+        if (label && el.classList.contains('label-visible')) {
+          const rect = label.getBoundingClientRect();
+          if (rect.width > 0 && rect.height > 0) {
+            occupied.push(rect);
+          }
+        }
+      });
+
       const districtsByPriority = administrativeLabelRegistryRef.current
         .filter(({ type, element }) => type === 'district' && element.style.display !== 'none')
-        .sort((left, right) => right.priority - left.priority);
-      districtsByPriority.forEach(({ element }) => {
-        element.classList.remove('label-text-hidden');
-        if (zoom >= DISTRICT_COLLISION_MAX_ZOOM) return;
+        .sort((left, right) => {
+          const leftSelected = state.districtId === left.locationId || state.selectedLocationId === left.locationId;
+          const rightSelected = state.districtId === right.locationId || state.selectedLocationId === right.locationId;
+          if (leftSelected && !rightSelected) return -1;
+          if (!leftSelected && rightSelected) return 1;
+          return right.priority - left.priority;
+        });
+
+      districtsByPriority.forEach(({ element, locationId }) => {
+        const isSelected = state.districtId === locationId || state.selectedLocationId === locationId;
+        if (isSelected || zoom >= DISTRICT_COLLISION_MAX_ZOOM) {
+          element.classList.remove('label-text-hidden');
+          const label = element.querySelector('b');
+          if (label) occupied.push(label.getBoundingClientRect());
+          return;
+        }
+
         const label = element.querySelector('b');
         if (!label) return;
         const rect = label.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
         const overlaps = occupied.some((placed) => !(
-          rect.right + 4 < placed.left
-          || rect.left - 4 > placed.right
-          || rect.bottom + 3 < placed.top
-          || rect.top - 3 > placed.bottom
+          rect.right + 6 < placed.left
+          || rect.left - 6 > placed.right
+          || rect.bottom + 4 < placed.top
+          || rect.top - 4 > placed.bottom
         ));
-        if (overlaps) element.classList.add('label-text-hidden');
-        else occupied.push(rect);
+
+        if (overlaps) {
+          element.classList.add('label-text-hidden');
+        } else {
+          element.classList.remove('label-text-hidden');
+          occupied.push(rect);
+        }
       });
       administrativeLabelFrameRef.current = null;
     });
@@ -912,79 +983,102 @@ export function TajikistanMap({
 
   // Dynamic theme updates for map layers and DOM markers
   useEffect(() => {
+    currentThemeRef.current = theme;
     const map = mapRef.current;
     if (!map) return;
     const palette = MAP_PALETTES[theme];
 
     const applyTheme = () => {
-      if (map.getLayer('background')) {
-        map.setPaintProperty('background', 'background-color', palette.bg);
-      }
-      if (map.getLayer('country-fill')) {
-        map.setPaintProperty('country-fill', 'fill-color', getRegionColorExpression(theme, 'location_id'));
-      }
-      if (map.getLayer('districts-fill')) {
-        map.setPaintProperty('districts-fill', 'fill-color', getRegionColorExpression(theme, 'parent_id'));
-      }
-      if (map.getLayer('cities-fill')) {
-        map.setPaintProperty('cities-fill', 'fill-color', getCityAreaColorExpression(theme));
-      }
-      if (map.getLayer('country-glow')) {
-        map.setPaintProperty('country-glow', 'line-color', palette.countryGlow);
-      }
-      if (map.getLayer('regions-line')) {
-        map.setPaintProperty('regions-line', 'line-color', palette.regionsLine);
-      }
-      if (map.getLayer('districts-line')) {
-        map.setPaintProperty('districts-line', 'line-color', palette.districtsLine);
-      }
-      if (map.getLayer('cities-line')) {
-        map.setPaintProperty('cities-line', 'line-color', getCityAreaColorExpression(theme));
-      }
-      if (map.getLayer('country-line')) {
-        map.setPaintProperty('country-line', 'line-color', palette.countryLine);
-      }
-      if (map.getLayer('selected-region-fill')) {
-        map.setPaintProperty('selected-region-fill', 'fill-color', palette.selectedRegionFill);
-      }
-      if (map.getLayer('selected-region-line')) {
-        map.setPaintProperty('selected-region-line', 'line-color', palette.selectedRegionLine);
-      }
-      if (map.getLayer('selected-district-fill')) {
-        map.setPaintProperty('selected-district-fill', 'fill-color', palette.selectedDistrictFill);
-      }
-      if (map.getLayer('selected-district-line')) {
-        map.setPaintProperty('selected-district-line', 'line-color', palette.selectedDistrictLine);
-      }
-      if (map.getLayer('selected-city-fill')) {
-        map.setPaintProperty('selected-city-fill', 'fill-color', palette.selectedCityFill);
-      }
-      if (map.getLayer('selected-city-line')) {
-        map.setPaintProperty('selected-city-line', 'line-color', palette.selectedCityLine);
-      }
-      if (map.getLayer('news-location-points')) {
-        map.setPaintProperty('news-location-points', 'circle-stroke-color', palette.circleStroke);
-      }
+      try {
+        if (!map.getStyle()) return;
 
-      administrativeLabelRegistryRef.current.forEach(({ element, type, locationId }) => {
-        const feature = administrativeFeatures.find((f) => f.properties?.location_id === locationId);
-        element.style.setProperty(
-          '--area-color',
-          type === 'region'
-            ? palette.regions[locationId] ?? palette.defaultArea
-            : areaColorForParent(feature?.properties?.parent_id, theme),
-        );
-      });
+        if (map.getLayer('background')) {
+          map.setPaintProperty('background', 'background-color', palette.bg);
+        }
+        if (map.getLayer('country-fill')) {
+          map.setPaintProperty('country-fill', 'fill-color', getRegionColorExpression(theme, 'location_id'));
+        }
+        if (map.getLayer('districts-fill')) {
+          map.setPaintProperty('districts-fill', 'fill-color', getRegionColorExpression(theme, 'parent_id'));
+        }
+        if (map.getLayer('cities-fill')) {
+          map.setPaintProperty('cities-fill', 'fill-color', getCityAreaColorExpression(theme));
+        }
+        if (map.getLayer('country-glow')) {
+          map.setPaintProperty('country-glow', 'line-color', palette.countryGlow);
+        }
+        if (map.getLayer('regions-hit')) {
+          map.setPaintProperty('regions-hit', 'fill-color', palette.defaultArea);
+        }
+        if (map.getLayer('districts-hit')) {
+          map.setPaintProperty('districts-hit', 'fill-color', palette.selectedDistrictFill);
+        }
+        if (map.getLayer('cities-hit')) {
+          map.setPaintProperty('cities-hit', 'fill-color', palette.defaultArea);
+        }
+        if (map.getLayer('regions-line')) {
+          map.setPaintProperty('regions-line', 'line-color', palette.regionsLine);
+        }
+        if (map.getLayer('districts-line')) {
+          map.setPaintProperty('districts-line', 'line-color', palette.districtsLine);
+        }
+        if (map.getLayer('cities-line')) {
+          map.setPaintProperty('cities-line', 'line-color', getCityAreaColorExpression(theme));
+        }
+        if (map.getLayer('country-line')) {
+          map.setPaintProperty('country-line', 'line-color', palette.countryLine);
+        }
+        if (map.getLayer('selected-region-fill')) {
+          map.setPaintProperty('selected-region-fill', 'fill-color', palette.selectedRegionFill);
+        }
+        if (map.getLayer('selected-region-line')) {
+          map.setPaintProperty('selected-region-line', 'line-color', palette.selectedRegionLine);
+        }
+        if (map.getLayer('selected-district-fill')) {
+          map.setPaintProperty('selected-district-fill', 'fill-color', palette.selectedDistrictFill);
+        }
+        if (map.getLayer('selected-district-line')) {
+          map.setPaintProperty('selected-district-line', 'line-color', palette.selectedDistrictLine);
+        }
+        if (map.getLayer('selected-city-fill')) {
+          map.setPaintProperty('selected-city-fill', 'fill-color', palette.selectedCityFill);
+        }
+        if (map.getLayer('selected-city-line')) {
+          map.setPaintProperty('selected-city-line', 'line-color', palette.selectedCityLine);
+        }
+        if (map.getLayer('news-location-points')) {
+          map.setPaintProperty('news-location-points', 'circle-stroke-color', palette.circleStroke);
+          map.setPaintProperty('news-location-points', 'circle-color', [
+            'case',
+            ['==', ['get', 'severity'], 'alert'],
+            '#ff453a',
+            palette.defaultArea,
+          ]);
+        }
 
-      markerRegistryRef.current.forEach(({ marker, location }) => {
-        const element = marker.getElement();
-        element.style.setProperty('--marker-color', locationMarkerColor(location, theme));
-      });
+        administrativeLabelRegistryRef.current.forEach(({ element, type, locationId }) => {
+          const feature = administrativeFeatures.find((f) => f.properties?.location_id === locationId);
+          element.style.setProperty(
+            '--area-color',
+            type === 'region'
+              ? palette.regions[locationId] ?? palette.defaultArea
+              : areaColorForParent(feature?.properties?.parent_id, theme),
+          );
+        });
+
+        markerRegistryRef.current.forEach(({ marker, location }) => {
+          const element = marker.getElement();
+          element.style.setProperty('--marker-color', locationMarkerColor(location, theme));
+        });
+
+        map.triggerRepaint();
+      } catch (err) {
+        console.warn('Could not apply theme to map layers yet:', err);
+      }
     };
 
-    if (map.isStyleLoaded()) {
-      applyTheme();
-    } else {
+    applyTheme();
+    if (!map.loaded()) {
       map.once('load', applyTheme);
     }
   }, [theme]);
@@ -996,8 +1090,9 @@ export function TajikistanMap({
       container: ref.current,
       center: INITIAL_MAP_CENTER,
       zoom: INITIAL_MAP_ZOOM,
-      minZoom: 4.5,
+      minZoom: 4.8,
       maxZoom: 11,
+      maxBounds: TAJIKISTAN_MAX_BOUNDS,
       style: {
         version: 8,
         sources: {},
