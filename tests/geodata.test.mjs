@@ -7,6 +7,24 @@ const locations = JSON.parse(await readFile(new URL('src/data/geography/location
 const boundary = JSON.parse(await readFile(new URL('src/data/geography/tajikistan-boundary-medium.geojson', root), 'utf8'));
 const administrative = JSON.parse(await readFile(new URL('src/data/geography/administrative-boundaries.geojson', root), 'utf8'));
 
+const ringContains = (ring, [longitude, latitude]) => {
+  let inside = false;
+  for (let index = 0, previous = ring.length - 1; index < ring.length; previous = index, index += 1) {
+    const [currentLongitude, currentLatitude] = ring[index];
+    const [previousLongitude, previousLatitude] = ring[previous];
+    const crosses = (currentLatitude > latitude) !== (previousLatitude > latitude)
+      && longitude < ((previousLongitude - currentLongitude) * (latitude - currentLatitude))
+        / (previousLatitude - currentLatitude) + currentLongitude;
+    if (crosses) inside = !inside;
+  }
+  return inside;
+};
+
+const geometryContains = (geometry, point) => {
+  const polygons = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.coordinates;
+  return polygons.some(([outerRing]) => ringContains(outerRing, point));
+};
+
 test('canonical location IDs and parents are valid', () => {
   const rows = locations.locations;
   const ids = new Set(rows.map((row) => row.id));
@@ -37,16 +55,32 @@ test('country boundary is sourced and bounded', () => {
 
 test('administrative boundaries match canonical IDs', () => {
   assert.equal(administrative.type, 'FeatureCollection');
-  assert.equal(administrative.features.length, 52);
+  assert.equal(administrative.features.length, 66);
   assert.deepEqual(
-    Object.fromEntries(['region', 'district'].map((type) => [type, administrative.features.filter((feature) => feature.properties.location_type === type).length])),
-    { region: 5, district: 47 },
+    Object.fromEntries(['region', 'district', 'city'].map((type) => [type, administrative.features.filter((feature) => feature.properties.location_type === type).length])),
+    { region: 5, district: 47, city: 14 },
   );
-  const canonicalIds = new Set(locations.locations.filter(({ type }) => type === 'region' || type === 'district').map(({ id }) => id));
-  assert.deepEqual(new Set(administrative.features.map(({ properties }) => properties.location_id)), canonicalIds);
+  const expectedCityJurisdictions = new Set([
+    'city-isfara', 'city-konibodom', 'city-panjakent', 'city-istaravshan',
+    'city-hisor', 'city-roghun', 'city-levakant', 'city-tursunzoda',
+    'city-kulob', 'city-nurek', 'city-vahdat', 'city-khujand',
+    'city-buston', 'city-guliston',
+  ]);
+  const expectedIds = new Set(locations.locations
+    .filter(({ id, type }) => type === 'region' || type === 'district' || expectedCityJurisdictions.has(id))
+    .map(({ id }) => id));
+  assert.deepEqual(new Set(administrative.features.map(({ properties }) => properties.location_id)), expectedIds);
   for (const feature of administrative.features) {
     assert.match(feature.properties.source, /openstreetmap/);
     assert.equal(feature.properties.license, 'ODbL-1.0');
     assert.ok(['Polygon', 'MultiPolygon'].includes(feature.geometry.type));
+    if (feature.properties.location_type === 'city') {
+      const city = locations.locations.find(({ id }) => id === feature.properties.location_id);
+      assert.ok(city, `${feature.properties.location_id} is missing from canonical locations`);
+      assert.ok(
+        geometryContains(feature.geometry, [city.longitude, city.latitude]),
+        `${feature.properties.location_id} marker is outside its administrative polygon`,
+      );
+    }
   }
 });

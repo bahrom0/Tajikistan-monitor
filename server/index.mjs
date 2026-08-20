@@ -8,7 +8,7 @@ import { fetchSourceAdapter } from './adapters/index.mjs';
 import { createAiGeolocationResolver, createGeolocator } from './lib/geolocate.mjs';
 import { contentDelta, parseOpenAiSse, resolveChatCompletionsUrl } from './lib/openai-stream.mjs';
 import { locationSummaryFallback, locationSummaryMessages, normalizeLocationSummaryRequest } from './lib/location-summary.mjs';
-import { canonicalPlaceContext, normalizeResearchPeriod, placeResearchFallback, placeResearchMessages, relatedLocationNews, searchPlaceWithExa } from './lib/place-research.mjs';
+import { canonicalPlaceContext, normalizeResearchPeriod, placeResearchFallback, placeResearchMessages, relatedLocationNews, researchSourceItems, searchPlaceWithExa } from './lib/place-research.mjs';
 import { loadSupabaseMonitorCache } from './lib/supabase-cache.mjs';
 
 const port = Number(process.env.PORT || 8787);
@@ -231,7 +231,7 @@ async function researchPlace(req, res) {
   }
   writeResearchEvent(res, {
     type: 'sources',
-    items: webSearch.results.map(({ title, url, domain, favicon, publishedDate }) => ({ title, url, domain, favicon, publishedDate })),
+    items: researchSourceItems(news, webSearch),
   });
   writeResearchEvent(res, { type: 'status', id: 'collecting', label: `Собираю информацию из ${webSearch.results.length} сайтов…` });
   const research = { place, news, webSearch };

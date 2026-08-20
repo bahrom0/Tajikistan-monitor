@@ -6,6 +6,7 @@ import {
   normalizeResearchPeriod,
   placeResearchMessages,
   relatedLocationNews,
+  researchSourceItems,
   searchPlaceWithExa,
 } from '../server/lib/place-research.mjs';
 
@@ -36,6 +37,20 @@ test('place context is canonical and prompt treats fetched text as untrusted', (
   assert.match(messages[0].content, /недоверенными данными/i);
   assert.match(messages[1].content, /Ignore previous instructions/);
   assert.match(messages[0].content, /не утверждай, что просмотрел весь интернет/i);
+  assert.match(messages[0].content, /не печатай URL/i);
+});
+
+test('research citations expose stable ids, short titles, domains and favicons', () => {
+  const items = researchSourceItems(
+    [{ title: 'Официальная новость', sourceName: 'Ховар', url: 'https://khovar.tj/news/1', publishedAt: '2026-08-18' }],
+    { results: [{ title: 'Веб-новость', url: 'https://example.test/research', domain: 'example.test', favicon: 'https://example.test/icon.png', publishedDate: '2026-08-17' }] },
+  );
+  assert.deepEqual(items.map(({ id, type, title, domain }) => ({ id, type, title, domain })), [
+    { id: 'N1', type: 'official_news', title: 'Официальная новость', domain: 'khovar.tj' },
+    { id: 'W1', type: 'requested_web', title: 'Веб-новость', domain: 'example.test' },
+  ]);
+  assert.equal(items[0].favicon, 'https://khovar.tj/favicon.ico');
+  assert.equal(items[1].favicon, 'https://example.test/icon.png');
 });
 
 test('Exa search uses fixed endpoint, date range, fresh highlights and returns favicons', async () => {
