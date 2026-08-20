@@ -290,3 +290,104 @@ export function ChevronDownIcon({ size = 14, strokeWidth = 2, class: className =
     </svg>
   );
 }
+
+export function AlertTriangleIcon({ size = 18, strokeWidth = 2, class: className = '', ...props }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width={strokeWidth}
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={className}
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+      <line x1="12" y1="9" x2="12" y2="13" />
+      <line x1="12" y1="17" x2="12.01" y2="17" />
+    </svg>
+  );
+}
+
+export function GlobeIcon({ size = 14, strokeWidth = 2, class: className = '', ...props }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width={strokeWidth}
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      class={className}
+      aria-hidden="true"
+      {...props}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  );
+}
+
+export function AppleSpinner({ size = 20, class: className = '', ...props }: IconProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 40 40"
+      xmlns="http://www.w3.org/2000/svg"
+      class={`apple-spinner ${className}`.trim()}
+      fill="none"
+      aria-label="Загрузка"
+      role="status"
+      {...props}
+    >
+      <g transform="translate(20 20)">
+        <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18">
+          <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0s" repeatCount="indefinite" />
+        </rect>
+        <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(30)">
+          <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.1s" repeatCount="indefinite" />
+        </rect>
+        <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(60)">
+          <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.2s" repeatCount="indefinite" />
+        </rect>
+        <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(90)">
+          <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.3s" repeatCount="indefinite" />
+        </rect>
+        <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(120)">
+          <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.4s" repeatCount="indefinite" />
+        </rect>
+        <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(150)">
+          <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.5s" repeatCount="indefinite" />
+        </rect>
+        <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(180)">
+          <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.6s" repeatCount="indefinite" />
+        </rect>
+        <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(210)">
+          <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.7s" repeatCount="indefinite" />
+        </rect>
+        <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(240)">
+          <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.8s" repeatCount="indefinite" />
+        </rect>
+        <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(270)">
+          <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.9s" repeatCount="indefinite" />
+        </rect>
+        <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(300)">
+          <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="1.0s" repeatCount="indefinite" />
+        </rect>
+        <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(330)">
+          <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="1.1s" repeatCount="indefinite" />
+        </rect>
+      </g>
+    </svg>
+  );
+}
+
+

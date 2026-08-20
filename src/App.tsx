@@ -8,9 +8,11 @@ import {
   SparklesIcon,
   SearchIcon,
   NewspaperIcon,
-  HourglassIcon,
   ExternalLinkIcon,
   CloseIcon,
+  AlertTriangleIcon,
+  AppleSpinner,
+  CheckIcon,
 } from './components/icons';
 import type { NewsItem, SourceStatus } from './types';
 
@@ -46,6 +48,65 @@ export function App() {
   const [researchSources, setResearchSources] = useState<ResearchSource[]>([]);
   const aiRequest = useRef<AbortController | null>(null);
   const [geographyFilter, setGeographyFilter] = useState<GeographyFilter>({ regionId: 'all', districtId: 'all' });
+  const [alertsOnly, setAlertsOnly] = useState(false);
+  const [isAlertToastOpen, setIsAlertToastOpen] = useState(false);
+  const [isAlertToastClosing, setIsAlertToastClosing] = useState(false);
+  const [resetViewTrigger, setResetViewTrigger] = useState(0);
+  const isAlertToastOpenRef = useRef(false);
+  const isAlertToastClosingRef = useRef(false);
+  isAlertToastOpenRef.current = isAlertToastOpen;
+  isAlertToastClosingRef.current = isAlertToastClosing;
+  const toastTimerRef = useRef<number | null>(null);
+  const closeAnimTimerRef = useRef<number | null>(null);
+
+  const dismissAlertToast = (afterClose?: () => void) => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    if (!isAlertToastOpenRef.current || isAlertToastClosingRef.current) {
+      afterClose?.();
+      return;
+    }
+    setIsAlertToastClosing(true);
+    if (closeAnimTimerRef.current) clearTimeout(closeAnimTimerRef.current);
+    closeAnimTimerRef.current = window.setTimeout(() => {
+      setIsAlertToastOpen(false);
+      setIsAlertToastClosing(false);
+      afterClose?.();
+    }, 280);
+  };
+
+  const handleAlertRestriction = () => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    if (closeAnimTimerRef.current) clearTimeout(closeAnimTimerRef.current);
+    setIsAlertToastClosing(false);
+    setIsAlertToastOpen(true);
+  };
+
+  // Auto-dismiss alert toast strictly after 5 seconds
+  useEffect(() => {
+    if (!isAlertToastOpen || isAlertToastClosing) return;
+    const timer = window.setTimeout(() => {
+      dismissAlertToast();
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [isAlertToastOpen, isAlertToastClosing]);
+
+  const disableAlertMode = () => {
+    dismissAlertToast(() => {
+      setAlertsOnly(false);
+      setResetViewTrigger((count) => count + 1);
+    });
+  };
+
+  const handleEmptyMapClick = () => {
+    if (alertsOnly) {
+      dismissAlertToast(() => {
+        setAlertsOnly(false);
+      });
+    }
+  };
 
   // Navigation & Settings state
   const [activeNav, setActiveNav] = useState<'map' | 'chat' | 'news'>('map');
@@ -344,7 +405,7 @@ export function App() {
       {/* Left Pill Navigation Bar (Apple Style) */}
       <aside class="sidebar-nav" aria-label="Основная навигация">
         <div class="sidebar-brand" title="Tajikistan Monitor">
-          <div class="sidebar-brand-icon">TJ</div>
+          <img src="/logo.png" alt="Tajikistan Monitor" class="sidebar-brand-img" />
         </div>
 
         <nav class="sidebar-menu">
@@ -421,6 +482,7 @@ export function App() {
         {/* Topbar */}
         <header class="topbar">
           <div class="topbar-left">
+            <img src="/logo.png" alt="Tajikistan Monitor" class="topbar-logo" />
             <div class="brand-title">
               <h1>TAJIKISTAN MONITOR</h1>
               <span>Национальная информационная панель</span>
@@ -430,7 +492,7 @@ export function App() {
           <div class="topbar-center">
             <span class="status-pill">
               <span class="status-pill-dot" />
-              СИСТЕМА АКТИВНА
+              Обновлено
             </span>
             <span class="stat-chip">
               Источники <b>{online}/{statuses.length || 7}</b>
@@ -498,7 +560,15 @@ export function App() {
                       </small>
                     </div>
                     <span class="source-status-text">
-                      {source.status === 'online' ? 'OK' : source.status === 'degraded' ? 'WARN' : '—'}
+                      {loading ? (
+                        <AppleSpinner size={13} class="source-spinner" />
+                      ) : source.status === 'online' ? (
+                        'OK'
+                      ) : source.status === 'degraded' ? (
+                        'WARN'
+                      ) : (
+                        '—'
+                      )}
                     </span>
                   </div>
                 ))}
@@ -507,21 +577,40 @@ export function App() {
               <div>
                 <div class="section-title">Обзор</div>
                 <div class="metric-grid">
-                  <div class="metric-card">
+                  <button
+                    type="button"
+                    class="metric-card metric-card-btn"
+                    onClick={() => setActiveNav('news')}
+                    title="Открыть ленту новостей"
+                  >
                     <small>Новостей</small>
-                    <b>{news.length}</b>
-                  </div>
-                  <div class="metric-card">
+                    <b>{loading && !news.length ? <AppleSpinner size={18} class="metric-spinner" /> : news.length}</b>
+                  </button>
+                  <button
+                    type="button"
+                    class={`metric-card metric-card-btn${alertsOnly ? ' is-active' : ''}`}
+                    onClick={() => {
+                      setGeographyFilter({ regionId: 'all', districtId: 'all' });
+                      setAlertsOnly((prev) => !prev);
+                    }}
+                    title={alertsOnly ? 'Показать все точки на карте' : 'Показать только тревоги на карте'}
+                  >
                     <small>Тревог</small>
-                    <b class="warn">{news.filter((n) => n.severity === 'alert').length}</b>
+                    <b class="warn">
+                      {loading && !news.length ? (
+                        <AppleSpinner size={18} class="metric-spinner" />
+                      ) : (
+                        news.filter((n) => n.severity === 'alert').length
+                      )}
+                    </b>
+                  </button>
+                  <div class="metric-card" title="Температура в Душанбе (заглушка)">
+                    <small>Погода</small>
+                    <b>{loading ? <AppleSpinner size={18} class="metric-spinner" /> : '+38°'}</b>
                   </div>
-                  <div class="metric-card">
-                    <small>Городов</small>
-                    <b>18</b>
-                  </div>
-                  <div class="metric-card">
-                    <small>Районов</small>
-                    <b>47</b>
+                  <div class="metric-card" title="Курс USD/TJS от НБТ (заглушка)">
+                    <small>Курс $</small>
+                    <b>{loading ? <AppleSpinner size={18} class="metric-spinner" /> : '10.93'}</b>
                   </div>
                 </div>
               </div>
@@ -560,9 +649,13 @@ export function App() {
             <TajikistanMap
               theme={theme}
               news={filtered}
+              alertsOnly={alertsOnly}
+              resetViewTrigger={resetViewTrigger}
               onGeographyFilterChange={setGeographyFilter}
               onLocationSummary={openLocationSummary}
               onPlaceResearch={openPlaceResearch}
+              onAlertRestriction={handleAlertRestriction}
+              onEmptyMapClick={handleEmptyMapClick}
             />
             <div class="map-heading-pill">
               <span>Оперативная карта</span>
@@ -609,7 +702,7 @@ export function App() {
             <div class="news-feed-list" role="feed">
               {loading && !news.length ? (
                 <div class="news-empty-state">
-                  <span class="news-empty-icon"><HourglassIcon size={32} /></span>
+                  <span class="news-empty-icon"><AppleSpinner size={36} /></span>
                   <p>Загрузка официальных источников…</p>
                 </div>
               ) : filtered.map((item) => (
@@ -756,19 +849,31 @@ export function App() {
               {placeResearch && (
                 <div class="research-trace" aria-live="polite" aria-label="Ход веб-исследования">
                   <div class="research-trace-title">
-                    <span>EXA LIVE RESEARCH</span>
-                    <span>
-                      {asking
-                        ? 'В ПРОЦЕССЕ'
-                        : researchStages.some((stage) => stage.state === 'error')
-                          ? 'ОШИБКА'
-                          : 'ГОТОВО'}
+                    <span>Поиск данных</span>
+                    <span class="research-trace-status">
+                      {asking ? (
+                        <AppleSpinner size={15} class="research-status-spinner" />
+                      ) : researchStages.some((stage) => stage.state === 'error') ? (
+                        'ОШИБКА'
+                      ) : (
+                        'ГОТОВО'
+                      )}
                     </span>
                   </div>
                   <ol class="research-steps">
                     {researchStages.map((stage) => (
                       <li class={stage.state} key={stage.id}>
-                        <i aria-hidden="true" />
+                        {stage.state === 'active' ? (
+                          <AppleSpinner size={14} class="stage-spinner" />
+                        ) : stage.state === 'done' ? (
+                          <span class="stage-check-badge">
+                            <CheckIcon size={9} strokeWidth={3} />
+                          </span>
+                        ) : stage.state === 'error' ? (
+                          <span class="stage-error-badge">✕</span>
+                        ) : (
+                          <i aria-hidden="true" />
+                        )}
                         <span>{stage.label}</span>
                       </li>
                     ))}
@@ -779,16 +884,17 @@ export function App() {
                         Посещённые сайты ·{' '}
                         {researchSources.filter((source) => source.type === 'requested_web').length}
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                      <div class="visited-sites-grid">
                         {researchSources
                           .filter((source) => source.type === 'requested_web')
-                          .map((source) => (
+                          .map((source, index) => (
                             <a
                               key={source.id}
                               href={source.url}
                               target="_blank"
                               rel="noreferrer"
-                              class="stat-chip"
+                              class="stat-chip visited-site-chip"
+                              style={{ animationDelay: `${index * 55}ms` }}
                               title={source.title}
                             >
                               <span>{source.domain}</span>
@@ -981,6 +1087,42 @@ export function App() {
             </div>
           </section>
         </div>
+      )}
+
+      {/* Alert Mode Restriction PUSH Toast */}
+      {isAlertToastOpen && (
+        <aside
+          class={`alert-toast-banner${isAlertToastClosing ? ' is-closing' : ''}`}
+          role="alert"
+          aria-live="assertive"
+        >
+          <div class="alert-toast-icon">
+            <AlertTriangleIcon size={18} />
+          </div>
+          <div class="alert-toast-body">
+            <strong class="alert-toast-title">Выбор других регионов заблокирован</strong>
+            <p class="alert-toast-text">
+              Чтобы просмотреть все локации, отключите режим тревоги.
+            </p>
+          </div>
+          <div class="alert-toast-actions">
+            <button
+              type="button"
+              class="alert-toast-btn"
+              onClick={disableAlertMode}
+            >
+              Отключить
+            </button>
+            <button
+              type="button"
+              class="alert-toast-close"
+              onClick={() => dismissAlertToast()}
+              aria-label="Закрыть уведомление"
+            >
+              <CloseIcon size={14} />
+            </button>
+          </div>
+        </aside>
       )}
     </div>
   );

@@ -1,6 +1,7 @@
 import { Fragment, type ComponentChildren } from 'preact';
+import { useState } from 'preact/hooks';
 import { parseMarkdownBlocks } from '../lib/markdown.mjs';
-import { ExternalLinkIcon } from './icons';
+import { ExternalLinkIcon, GlobeIcon } from './icons';
 
 interface MarkdownContentProps {
   content: string;
@@ -21,47 +22,98 @@ const INLINE_TOKEN = /(\*\*[^*\n]+\*\*|`[^`\n]+`|\[[^\]\n]+\]\(https?:\/\/[^\s)]
 const SOURCE_LINE = /^\[((?:N|W)\d+)\](?:\s+https?:\/\/\S+)?$/;
 
 function SourceFavicon({ source, size = 16 }: { source: CitationSource; size?: number }) {
-  return <span class="citation-favicon" style={{ width: `${size}px`, height: `${size}px` }} aria-hidden="true">
-    <b>{source.domain.slice(0, 1).toUpperCase()}</b>
-    {source.favicon && <img
-      src={source.favicon}
-      alt=""
-      width={size}
-      height={size}
-      loading="lazy"
-      referrerPolicy="no-referrer"
-      onError={(event) => { event.currentTarget.style.display = 'none'; }}
-    />}
-  </span>;
+  const [imgError, setImgError] = useState(false);
+
+  return (
+    <span
+      class="citation-favicon"
+      style={{ width: `${size}px`, height: `${size}px` }}
+      aria-hidden="true"
+    >
+      {source.favicon && !imgError ? (
+        <img
+          src={source.favicon}
+          alt=""
+          width={size}
+          height={size}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        <GlobeIcon size={Math.round(size * 0.75)} class="citation-favicon-fallback" />
+      )}
+    </span>
+  );
 }
 
-function InlineCitation({ source, fallback, keyValue }: { source?: CitationSource; fallback: string; keyValue: string }) {
-  if (!source?.url) return <span key={keyValue} class="citation-chip is-unlinked">{fallback}</span>;
-  return <a
-    key={keyValue}
-    class="citation-chip"
-    href={source.url}
-    target="_blank"
-    rel="noreferrer noopener"
-    title={`${source.title} — ${source.domain}`}
-    aria-label={`${fallback}: ${source.title}, ${source.domain}`}
-  >
-    <SourceFavicon source={source} />
-    <span>{fallback}</span>
-  </a>;
+function InlineCitation({
+  source,
+  fallback,
+  keyValue,
+}: {
+  source?: CitationSource;
+  fallback: string;
+  keyValue: string;
+}) {
+  const displayLabel = source?.domain || source?.title || fallback;
+  if (!source?.url) {
+    return (
+      <span key={keyValue} class="citation-chip is-unlinked">
+        <GlobeIcon size={12} class="citation-favicon-fallback" />
+        <span>{displayLabel}</span>
+      </span>
+    );
+  }
+  return (
+    <a
+      key={keyValue}
+      class="citation-chip"
+      href={source.url}
+      target="_blank"
+      rel="noreferrer noopener"
+      title={`${source.title} — ${source.domain}`}
+      aria-label={`${displayLabel}: ${source.title}, ${source.domain}`}
+    >
+      <SourceFavicon source={source} size={14} />
+      <span>{displayLabel}</span>
+    </a>
+  );
 }
 
 function SourceCard({ source, keyValue }: { source: CitationSource; keyValue: string }) {
-  const content = <>
-    <SourceFavicon source={source} size={28} />
-    <span class="citation-source-copy">
-      <strong>{source.title}</strong>
-      <small><b>{source.id}</b><span>{source.domain}</span>{source.publishedDate && <time>{source.publishedDate.slice(0, 10)}</time>}</small>
-    </span>
-    <ExternalLinkIcon size={14} class="citation-source-icon" />
-  </>;
-  if (!source.url) return <span key={keyValue} class="citation-source-card is-unlinked">{content}</span>;
-  return <a key={keyValue} class="citation-source-card" href={source.url} target="_blank" rel="noreferrer noopener" aria-label={`Открыть источник: ${source.title}`}>{content}</a>;
+  const content = (
+    <>
+      <SourceFavicon source={source} size={28} />
+      <span class="citation-source-copy">
+        <strong>{source.title}</strong>
+        <small>
+          <span class="citation-domain-badge">{source.domain}</span>
+          {source.publishedDate && <time>{source.publishedDate.slice(0, 10)}</time>}
+        </small>
+      </span>
+      <ExternalLinkIcon size={14} class="citation-source-icon" />
+    </>
+  );
+  if (!source.url) {
+    return (
+      <span key={keyValue} class="citation-source-card is-unlinked">
+        {content}
+      </span>
+    );
+  }
+  return (
+    <a
+      key={keyValue}
+      class="citation-source-card"
+      href={source.url}
+      target="_blank"
+      rel="noreferrer noopener"
+      aria-label={`Открыть источник: ${source.title}`}
+    >
+      {content}
+    </a>
+  );
 }
 
 function renderInline(text: string, keyPrefix: string, sourcesById: Map<string, CitationSource>, sourcesByUrl: Map<string, CitationSource>): ComponentChildren[] {
