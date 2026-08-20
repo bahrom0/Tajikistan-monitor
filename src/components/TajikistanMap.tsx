@@ -26,12 +26,71 @@ type AdministrativeFeature = {
 
 const administrativeFeatures = administrativeBoundaries.features as unknown as AdministrativeFeature[];
 
-const REGION_COLORS: Record<string, string> = {
-  'region-gbao': '#315d8a',
-  'region-sughd': '#76538f',
-  'region-khatlon': '#9a553f',
-  'region-dushanbe': '#2f8177',
-  'region-rrp': '#718246',
+export type ThemeMode = 'dark' | 'light';
+
+export const MAP_PALETTES: Record<ThemeMode, {
+  bg: string;
+  regions: Record<string, string>;
+  regionFallback: string;
+  defaultArea: string;
+  regionsLine: string;
+  districtsLine: string;
+  countryLine: string;
+  countryGlow: string;
+  selectedRegionFill: string;
+  selectedRegionLine: string;
+  selectedDistrictFill: string;
+  selectedDistrictLine: string;
+  selectedCityFill: string;
+  selectedCityLine: string;
+  circleStroke: string;
+}> = {
+  dark: {
+    bg: '#0a0a0d',
+    regions: {
+      'region-gbao': '#2C3540',
+      'region-sughd': '#353245',
+      'region-khatlon': '#3D3130',
+      'region-dushanbe': '#1D3B53',
+      'region-rrp': '#2A3833',
+    },
+    regionFallback: '#181920',
+    defaultArea: '#0a84ff',
+    regionsLine: '#3a3c4a',
+    districtsLine: '#2a2b36',
+    countryLine: '#555866',
+    countryGlow: '#0a84ff',
+    selectedRegionFill: '#0a84ff',
+    selectedRegionLine: '#0a84ff',
+    selectedDistrictFill: '#5e5ce6',
+    selectedDistrictLine: '#5e5ce6',
+    selectedCityFill: '#0a84ff',
+    selectedCityLine: '#0a84ff',
+    circleStroke: '#0a0a0d',
+  },
+  light: {
+    bg: '#EEF2F6',
+    regions: {
+      'region-gbao': '#D2DCE6',
+      'region-sughd': '#DDD7E8',
+      'region-khatlon': '#E8DDD5',
+      'region-dushanbe': '#CBE0F5',
+      'region-rrp': '#D4E2D8',
+    },
+    regionFallback: '#DDE2E8',
+    defaultArea: '#007aff',
+    regionsLine: '#B0B8C4',
+    districtsLine: '#C8D0DA',
+    countryLine: '#808B99',
+    countryGlow: '#007aff',
+    selectedRegionFill: '#007aff',
+    selectedRegionLine: '#007aff',
+    selectedDistrictFill: '#5856d6',
+    selectedDistrictLine: '#5856d6',
+    selectedCityFill: '#007aff',
+    selectedCityLine: '#007aff',
+    circleStroke: '#ffffff',
+  },
 };
 
 const REGION_LABELS: Record<string, string> = {
@@ -196,39 +255,59 @@ const REGION_LABEL_MAX_ZOOM = 5.8;
 const DISTRICT_LABEL_MIN_ZOOM = 5.65;
 const DISTRICT_COLLISION_MAX_ZOOM = 7.5;
 
-const DEFAULT_AREA_COLOR = '#4fa98f';
-
-const areaColorForParent = (parentId: string | null | undefined) => {
+const areaColorForParent = (parentId: string | null | undefined, theme: ThemeMode = 'dark') => {
+  const palette = MAP_PALETTES[theme];
   const visited = new Set<string>();
   let currentId = parentId ?? null;
 
   while (currentId && !visited.has(currentId)) {
-    const regionColor = REGION_COLORS[currentId];
+    const regionColor = palette.regions[currentId];
     if (regionColor) return regionColor;
     visited.add(currentId);
     currentId = locationById.get(currentId)?.parent_id ?? null;
   }
 
-  return DEFAULT_AREA_COLOR;
+  return palette.defaultArea;
 };
 
-const areaColorForLocation = (location: Pick<CanonicalLocation, 'parent_id'>) => (
-  areaColorForParent(location.parent_id)
+const areaColorForLocation = (location: Pick<CanonicalLocation, 'parent_id'>, theme: ThemeMode = 'dark') => (
+  areaColorForParent(location.parent_id, theme)
 );
 
-const cityColors = new Map(cities.map((location) => [
+const getCityColors = (theme: ThemeMode = 'dark') => new Map(cities.map((location) => [
   location.id,
-  areaColorForLocation(location),
+  areaColorForLocation(location, theme),
 ]));
-const cityAreaColorExpression = [
-  'match',
-  ['get', 'location_id'],
-  ...cities.flatMap((location) => [location.id, cityColors.get(location.id) ?? '#4fa98f']),
-  DEFAULT_AREA_COLOR,
-] as unknown as maplibregl.ExpressionSpecification;
-const locationMarkerColor = (location: LocationPoint) => (
-  cityColors.get(location.id) ?? areaColorForLocation(location)
-);
+
+const getCityAreaColorExpression = (theme: ThemeMode = 'dark') => {
+  const palette = MAP_PALETTES[theme];
+  const colors = getCityColors(theme);
+  return [
+    'match',
+    ['get', 'location_id'],
+    ...cities.flatMap((location) => [location.id, colors.get(location.id) ?? palette.defaultArea]),
+    palette.defaultArea,
+  ] as unknown as maplibregl.ExpressionSpecification;
+};
+
+const getRegionColorExpression = (theme: ThemeMode = 'dark', propertyName = 'location_id') => {
+  const palette = MAP_PALETTES[theme];
+  return [
+    'match',
+    ['get', propertyName],
+    'region-gbao', palette.regions['region-gbao'],
+    'region-sughd', palette.regions['region-sughd'],
+    'region-khatlon', palette.regions['region-khatlon'],
+    'region-dushanbe', palette.regions['region-dushanbe'],
+    'region-rrp', palette.regions['region-rrp'],
+    palette.regionFallback,
+  ] as unknown as maplibregl.ExpressionSpecification;
+};
+
+const locationMarkerColor = (location: LocationPoint, theme: ThemeMode = 'dark') => {
+  const colors = getCityColors(theme);
+  return colors.get(location.id) ?? areaColorForLocation(location, theme);
+};
 
 const normalizeSearch = (value: string) => value.trim().toLocaleLowerCase('ru-RU').normalize('NFKC');
 
@@ -355,7 +434,19 @@ export type GeographyFilter = { regionId: string; districtId: string };
 export type LocationSummarySelection = { locationId: string; nameRu: string; nameTg: string; articles: NewsItem[] };
 export type PlaceResearchSelection = { locationId: string; nameRu: string; nameTg: string; locationType: CanonicalLocation['type']; parentLabel: string; periodDays: number };
 
-export function TajikistanMap({ news = [], onGeographyFilterChange, onLocationSummary, onPlaceResearch }: { news?: NewsItem[]; onGeographyFilterChange?: (filter: GeographyFilter) => void; onLocationSummary?: (selection: LocationSummarySelection) => void; onPlaceResearch?: (selection: PlaceResearchSelection) => void }) {
+export function TajikistanMap({
+  news = [],
+  theme = 'dark',
+  onGeographyFilterChange,
+  onLocationSummary,
+  onPlaceResearch,
+}: {
+  news?: NewsItem[];
+  theme?: ThemeMode;
+  onGeographyFilterChange?: (filter: GeographyFilter) => void;
+  onLocationSummary?: (selection: LocationSummarySelection) => void;
+  onPlaceResearch?: (selection: PlaceResearchSelection) => void;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markerRegistryRef = useRef(new Map<string, MarkerRecord>());
@@ -368,6 +459,8 @@ export function TajikistanMap({ news = [], onGeographyFilterChange, onLocationSu
   const newsItemsRef = useRef(news);
   const onLocationSummaryRef = useRef(onLocationSummary);
   const onPlaceResearchRef = useRef(onPlaceResearch);
+  const currentThemeRef = useRef(theme);
+  currentThemeRef.current = theme;
   newsDataRef.current = newsFeatures(news);
   newsItemsRef.current = news;
   onLocationSummaryRef.current = onLocationSummary;
@@ -600,8 +693,88 @@ export function TajikistanMap({ news = [], onGeographyFilterChange, onLocationSu
     source?.setData(newsDataRef.current);
   }, [news]);
 
+  // Dynamic theme updates for map layers and DOM markers
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const palette = MAP_PALETTES[theme];
+
+    const applyTheme = () => {
+      if (map.getLayer('background')) {
+        map.setPaintProperty('background', 'background-color', palette.bg);
+      }
+      if (map.getLayer('country-fill')) {
+        map.setPaintProperty('country-fill', 'fill-color', getRegionColorExpression(theme, 'location_id'));
+      }
+      if (map.getLayer('districts-fill')) {
+        map.setPaintProperty('districts-fill', 'fill-color', getRegionColorExpression(theme, 'parent_id'));
+      }
+      if (map.getLayer('cities-fill')) {
+        map.setPaintProperty('cities-fill', 'fill-color', getCityAreaColorExpression(theme));
+      }
+      if (map.getLayer('country-glow')) {
+        map.setPaintProperty('country-glow', 'line-color', palette.countryGlow);
+      }
+      if (map.getLayer('regions-line')) {
+        map.setPaintProperty('regions-line', 'line-color', palette.regionsLine);
+      }
+      if (map.getLayer('districts-line')) {
+        map.setPaintProperty('districts-line', 'line-color', palette.districtsLine);
+      }
+      if (map.getLayer('cities-line')) {
+        map.setPaintProperty('cities-line', 'line-color', getCityAreaColorExpression(theme));
+      }
+      if (map.getLayer('country-line')) {
+        map.setPaintProperty('country-line', 'line-color', palette.countryLine);
+      }
+      if (map.getLayer('selected-region-fill')) {
+        map.setPaintProperty('selected-region-fill', 'fill-color', palette.selectedRegionFill);
+      }
+      if (map.getLayer('selected-region-line')) {
+        map.setPaintProperty('selected-region-line', 'line-color', palette.selectedRegionLine);
+      }
+      if (map.getLayer('selected-district-fill')) {
+        map.setPaintProperty('selected-district-fill', 'fill-color', palette.selectedDistrictFill);
+      }
+      if (map.getLayer('selected-district-line')) {
+        map.setPaintProperty('selected-district-line', 'line-color', palette.selectedDistrictLine);
+      }
+      if (map.getLayer('selected-city-fill')) {
+        map.setPaintProperty('selected-city-fill', 'fill-color', palette.selectedCityFill);
+      }
+      if (map.getLayer('selected-city-line')) {
+        map.setPaintProperty('selected-city-line', 'line-color', palette.selectedCityLine);
+      }
+      if (map.getLayer('news-location-points')) {
+        map.setPaintProperty('news-location-points', 'circle-stroke-color', palette.circleStroke);
+      }
+
+      administrativeLabelRegistryRef.current.forEach(({ element, type, locationId }) => {
+        const feature = administrativeFeatures.find((f) => f.properties?.location_id === locationId);
+        element.style.setProperty(
+          '--area-color',
+          type === 'region'
+            ? palette.regions[locationId] ?? palette.defaultArea
+            : areaColorForParent(feature?.properties?.parent_id, theme),
+        );
+      });
+
+      markerRegistryRef.current.forEach(({ marker, location }) => {
+        const element = marker.getElement();
+        element.style.setProperty('--marker-color', locationMarkerColor(location, theme));
+      });
+    };
+
+    if (map.isStyleLoaded()) {
+      applyTheme();
+    } else {
+      map.once('load', applyTheme);
+    }
+  }, [theme]);
+
   useEffect(() => {
     if (!ref.current) return;
+    const initialPalette = MAP_PALETTES[theme];
     const map = new maplibregl.Map({
       container: ref.current,
       center: INITIAL_MAP_CENTER,
@@ -611,7 +784,7 @@ export function TajikistanMap({ news = [], onGeographyFilterChange, onLocationSu
       style: {
         version: 8,
         sources: {},
-        layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#071211' } }],
+        layers: [{ id: 'background', type: 'background', paint: { 'background-color': initialPalette.bg } }],
       },
       attributionControl: false,
     });
@@ -632,39 +805,41 @@ export function TajikistanMap({ news = [], onGeographyFilterChange, onLocationSu
     map.on('moveend', syncAdministrativeLabelVisibility);
 
     map.on('load', () => {
+      const activeTheme = currentThemeRef.current;
+      const palette = MAP_PALETTES[activeTheme];
       map.addSource('administrative', { type: 'geojson', data: administrativeBoundaries as maplibregl.GeoJSONSourceSpecification['data'] });
       map.addSource('country-outline', { type: 'geojson', data: administrativeCountryOutline });
       map.addLayer({ id: 'country-fill', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_type'], 'region'], paint: {
-        'fill-color': ['match', ['get', 'location_id'], 'region-gbao', REGION_COLORS['region-gbao'], 'region-sughd', REGION_COLORS['region-sughd'], 'region-khatlon', REGION_COLORS['region-khatlon'], 'region-dushanbe', REGION_COLORS['region-dushanbe'], 'region-rrp', REGION_COLORS['region-rrp'], '#17332c'],
-        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 4.5, 0.48, 6.2, 0.3, 8, 0.18],
+        'fill-color': getRegionColorExpression(activeTheme, 'location_id'),
+        'fill-opacity': ['interpolate', ['linear'], ['zoom'], 4.5, 0.45, 6.2, 0.3, 8, 0.18],
       } });
       map.addLayer({ id: 'districts-fill', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_type'], 'district'], minzoom: 5.55, paint: {
-        'fill-color': ['match', ['get', 'parent_id'], 'region-gbao', REGION_COLORS['region-gbao'], 'region-sughd', REGION_COLORS['region-sughd'], 'region-khatlon', REGION_COLORS['region-khatlon'], 'region-dushanbe', REGION_COLORS['region-dushanbe'], 'region-rrp', REGION_COLORS['region-rrp'], '#17332c'],
+        'fill-color': getRegionColorExpression(activeTheme, 'parent_id'),
         'fill-opacity': ['interpolate', ['linear'], ['zoom'], 5.55, 0.08, 7, 0.2, 9, 0.1],
       } });
       map.addLayer({ id: 'cities-fill', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_type'], 'city'], minzoom: 5.55, paint: {
-        'fill-color': cityAreaColorExpression,
+        'fill-color': getCityAreaColorExpression(activeTheme),
         'fill-opacity': ['interpolate', ['linear'], ['zoom'], 5.55, 0.22, 7, 0.34, 9, 0.2],
       } });
-      map.addLayer({ id: 'country-glow', type: 'line', source: 'country-outline', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#35f2ac', 'line-width': ['interpolate', ['linear'], ['zoom'], 4.5, 9, 11, 14], 'line-opacity': 0.13, 'line-blur': 7 } });
-      map.addLayer({ id: 'regions-hit', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_type'], 'region'], paint: { 'fill-color': '#35e6a4', 'fill-opacity': 0.01 } });
-      map.addLayer({ id: 'districts-hit', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_type'], 'district'], minzoom: 5.55, paint: { 'fill-color': '#f0c067', 'fill-opacity': 0.01 } });
-      map.addLayer({ id: 'cities-hit', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_type'], 'city'], minzoom: 5.55, paint: { 'fill-color': '#4fe0b4', 'fill-opacity': 0.01 } });
-      map.addLayer({ id: 'regions-line', type: 'line', source: 'administrative', filter: ['==', ['get', 'location_type'], 'region'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#b2e8d6', 'line-width': ['interpolate', ['linear'], ['zoom'], 4.5, 1.8, 8, 2.8], 'line-opacity': 0.82 } });
-      map.addLayer({ id: 'districts-line', type: 'line', source: 'administrative', filter: ['==', ['get', 'location_type'], 'district'], minzoom: 5.55, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#a5cbbf', 'line-width': ['interpolate', ['linear'], ['zoom'], 5.55, 0.9, 8, 1.7, 11, 2.2], 'line-opacity': 0.68 } });
-      map.addLayer({ id: 'cities-line', type: 'line', source: 'administrative', filter: ['==', ['get', 'location_type'], 'city'], minzoom: 5.55, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': cityAreaColorExpression, 'line-width': ['interpolate', ['linear'], ['zoom'], 5.55, 1.4, 8, 2.2, 11, 3], 'line-opacity': 0.95 } });
-      map.addLayer({ id: 'selected-region-fill', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], paint: { 'fill-color': '#35e6a4', 'fill-opacity': 0.12 } });
-      map.addLayer({ id: 'selected-region-line', type: 'line', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], paint: { 'line-color': '#7effc9', 'line-width': 3, 'line-opacity': 0.95 } });
-      map.addLayer({ id: 'selected-district-fill', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], paint: { 'fill-color': '#f0c067', 'fill-opacity': 0.2 } });
-      map.addLayer({ id: 'selected-district-line', type: 'line', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], paint: { 'line-color': '#f0c067', 'line-width': 2.5, 'line-opacity': 1 } });
-      map.addLayer({ id: 'selected-city-fill', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], paint: { 'fill-color': '#5fffc4', 'fill-opacity': 0.26 } });
-      map.addLayer({ id: 'selected-city-line', type: 'line', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#8effd5', 'line-width': 3.2, 'line-opacity': 1 } });
-      map.addLayer({ id: 'country-line', type: 'line', source: 'country-outline', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#41e7aa', 'line-width': ['interpolate', ['linear'], ['zoom'], 4.5, 2.5, 8, 3.5, 11, 4.5], 'line-opacity': 0.94, 'line-blur': 0.2 } });
+      map.addLayer({ id: 'country-glow', type: 'line', source: 'country-outline', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': palette.countryGlow, 'line-width': ['interpolate', ['linear'], ['zoom'], 4.5, 6, 11, 10], 'line-opacity': 0.08, 'line-blur': 5 } });
+      map.addLayer({ id: 'regions-hit', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_type'], 'region'], paint: { 'fill-color': palette.defaultArea, 'fill-opacity': 0.01 } });
+      map.addLayer({ id: 'districts-hit', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_type'], 'district'], minzoom: 5.55, paint: { 'fill-color': palette.selectedDistrictFill, 'fill-opacity': 0.01 } });
+      map.addLayer({ id: 'cities-hit', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_type'], 'city'], minzoom: 5.55, paint: { 'fill-color': palette.defaultArea, 'fill-opacity': 0.01 } });
+      map.addLayer({ id: 'regions-line', type: 'line', source: 'administrative', filter: ['==', ['get', 'location_type'], 'region'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': palette.regionsLine, 'line-width': ['interpolate', ['linear'], ['zoom'], 4.5, 1.5, 8, 2.4], 'line-opacity': 0.8 } });
+      map.addLayer({ id: 'districts-line', type: 'line', source: 'administrative', filter: ['==', ['get', 'location_type'], 'district'], minzoom: 5.55, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': palette.districtsLine, 'line-width': ['interpolate', ['linear'], ['zoom'], 5.55, 0.8, 8, 1.5, 11, 2.0], 'line-opacity': 0.65 } });
+      map.addLayer({ id: 'cities-line', type: 'line', source: 'administrative', filter: ['==', ['get', 'location_type'], 'city'], minzoom: 5.55, layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': getCityAreaColorExpression(activeTheme), 'line-width': ['interpolate', ['linear'], ['zoom'], 5.55, 1.2, 8, 2.0, 11, 2.8], 'line-opacity': 0.9 } });
+      map.addLayer({ id: 'selected-region-fill', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], paint: { 'fill-color': palette.selectedRegionFill, 'fill-opacity': 0.15 } });
+      map.addLayer({ id: 'selected-region-line', type: 'line', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], paint: { 'line-color': palette.selectedRegionLine, 'line-width': 2.5, 'line-opacity': 0.95 } });
+      map.addLayer({ id: 'selected-district-fill', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], paint: { 'fill-color': palette.selectedDistrictFill, 'fill-opacity': 0.18 } });
+      map.addLayer({ id: 'selected-district-line', type: 'line', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], paint: { 'line-color': palette.selectedDistrictLine, 'line-width': 2.2, 'line-opacity': 1 } });
+      map.addLayer({ id: 'selected-city-fill', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], paint: { 'fill-color': palette.selectedCityFill, 'fill-opacity': 0.22 } });
+      map.addLayer({ id: 'selected-city-line', type: 'line', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': palette.selectedCityLine, 'line-width': 2.8, 'line-opacity': 1 } });
+      map.addLayer({ id: 'country-line', type: 'line', source: 'country-outline', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': palette.countryLine, 'line-width': ['interpolate', ['linear'], ['zoom'], 4.5, 2.0, 8, 3.0, 11, 4.0], 'line-opacity': 0.9 } });
 
       map.addSource('news-locations', { type: 'geojson', data: newsDataRef.current });
       map.addLayer({ id: 'news-location-points', type: 'circle', source: 'news-locations', paint: {
-        'circle-radius': ['interpolate', ['linear'], ['get', 'article_count'], 1, 7, 5, 11, 10, 15], 'circle-color': ['case', ['==', ['get', 'severity'], 'alert'], '#ff765e', '#f0c067'],
-        'circle-stroke-color': '#06100e', 'circle-stroke-width': 2, 'circle-opacity': 0.95,
+        'circle-radius': ['interpolate', ['linear'], ['get', 'article_count'], 1, 6, 5, 10, 10, 14], 'circle-color': ['case', ['==', ['get', 'severity'], 'alert'], '#ff453a', palette.defaultArea],
+        'circle-stroke-color': palette.circleStroke, 'circle-stroke-width': 2, 'circle-opacity': 0.95,
       } });
       const selectAdministrativeLocation = (location: CanonicalLocation, lngLat: maplibregl.LngLatLike) => {
         if (location.id === 'region-dushanbe') {
@@ -750,14 +925,13 @@ export function TajikistanMap({ news = [], onGeographyFilterChange, onLocationSu
                 distance: Math.hypot(point.x - event.point.x, point.y - event.point.y),
               };
             })
-            .filter(({ distance }) => distance <= 34)
-            .sort((left, right) => left.distance - right.distance)[0]?.location;
-          if (nearbyCity) {
-            handleLocationInteraction(nearbyCity, event.lngLat);
+            .sort((left, right) => left.distance - right.distance)[0];
+          if (nearbyCity && nearbyCity.distance <= 22) {
+            handleLocationInteraction(nearbyCity.location, [nearbyCity.location.longitude, nearbyCity.location.latitude]);
             return;
           }
         }
-        const hitLayers = map.getZoom() >= 5.55 ? ['cities-hit', 'districts-hit', 'regions-hit'] : ['regions-hit'];
+        const hitLayers = ['cities-hit', 'districts-hit', 'regions-hit'].filter((layerId) => map.getLayer(layerId));
         const feature = map.queryRenderedFeatures(event.point, { layers: hitLayers })[0];
         const locationId = String(feature?.properties?.location_id || '');
         const location = locationById.get(locationId);
@@ -853,8 +1027,8 @@ export function TajikistanMap({ news = [], onGeographyFilterChange, onLocationSu
           ? REGION_LABELS[locationId] ?? feature.properties?.name_ru ?? locationId
           : (feature.properties?.name_ru ?? locationId).replace(/\s+район$/iu, '');
         element.style.setProperty('--area-color', type === 'region'
-          ? REGION_COLORS[locationId] ?? DEFAULT_AREA_COLOR
-          : areaColorForParent(feature.properties?.parent_id));
+          ? palette.regions[locationId] ?? palette.defaultArea
+          : areaColorForParent(feature.properties?.parent_id, activeTheme));
         element.append(dot, label);
         const labelPosition = representativePoint(feature.geometry);
         element.addEventListener('click', (event) => {
@@ -877,7 +1051,7 @@ export function TajikistanMap({ news = [], onGeographyFilterChange, onLocationSu
         element.className = `location-marker city-marker${location.id === 'city-dushanbe' ? ' capital' : ''}`;
         element.setAttribute('aria-label', `${location.name_ru}, ${location.name_tg}`);
         element.title = `${location.name_ru} · ${location.name_tg}`;
-        element.style.setProperty('--marker-color', locationMarkerColor(location));
+        element.style.setProperty('--marker-color', locationMarkerColor(location, activeTheme));
 
         const dot = document.createElement('span');
         dot.className = 'marker-dot';
