@@ -188,6 +188,7 @@ const districts = locations.filter((location) => location.type === 'district');
 // Small settlements stay in the canonical dataset for article geolocation,
 // but the public map intentionally shows only official cities.
 const pointLocations: LocationPoint[] = cities;
+const dushanbeCity = pointLocations.find((location) => location.id === 'city-dushanbe');
 const locationById = new Map<string, CanonicalLocation>(locations.map((location) => [location.id, location]));
 const CITY_VISIBILITY_ZOOM = 5.9;
 const CITY_LABEL_VISIBILITY_ZOOM = 6.85;
@@ -319,11 +320,11 @@ const createPopupContent = (location: CanonicalLocation, onResearch?: (selection
 };
 
 const newsFeatures = (news: NewsItem[]) => {
-  const groups = new Map<string, { longitude: number; latitude: number; articles: Array<{ title: string; source: string; severity: string; confidence: number; evidence: string }> }>();
+  const groups = new Map<string, { longitude: number; latitude: number; articles: Array<{ title: string; url: string; source: string; severity: string; confidence: number; evidence: string }> }>();
   for (const article of news) for (const location of article.locations ?? []) {
     if (location.confidence < (article.geolocationThreshold ?? 0.78) || location.longitude === null || location.latitude === null) continue;
     const group = groups.get(location.locationId) ?? { longitude: location.longitude, latitude: location.latitude, articles: [] };
-    group.articles.push({ title: article.title, source: article.sourceName, severity: article.severity, confidence: location.confidence, evidence: location.evidence });
+    group.articles.push({ title: article.title, url: article.url, source: article.sourceName, severity: article.severity, confidence: location.confidence, evidence: location.evidence });
     groups.set(location.locationId, group);
   }
   return {
@@ -338,6 +339,16 @@ const newsFeatures = (news: NewsItem[]) => {
       geometry: { type: 'Point' as const, coordinates: [group.longitude, group.latitude] },
     })),
   };
+};
+
+const safeNewsUrl = (value: unknown) => {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : null;
+  } catch {
+    return null;
+  }
 };
 
 export type GeographyFilter = { regionId: string; districtId: string };
@@ -419,7 +430,11 @@ export function TajikistanMap({ news = [], onGeographyFilterChange, onLocationSu
       const layerVisible = state.showCities;
       const zoomVisible = mapZoomRef.current >= CITY_VISIBILITY_ZOOM;
       const visible = layerVisible && zoomVisible && isInHierarchy(location, state.regionId, state.districtId);
-      const showLabel = mapZoomRef.current >= CITY_LABEL_VISIBILITY_ZOOM;
+      // Душанбе is also an administrative region. Show its city label as soon
+      // as the city marker appears, so it can replace the region label cleanly.
+      const showLabel = location.id === 'city-dushanbe'
+        ? mapZoomRef.current >= CITY_VISIBILITY_ZOOM
+        : mapZoomRef.current >= CITY_LABEL_VISIBILITY_ZOOM;
 
       element.style.display = visible ? '' : 'none';
       element.tabIndex = visible ? 0 : -1;
@@ -432,7 +447,14 @@ export function TajikistanMap({ news = [], onGeographyFilterChange, onLocationSu
   const syncAdministrativeLabelVisibility = () => {
     const zoom = mapZoomRef.current;
     administrativeLabelRegistryRef.current.forEach(({ element, type, locationId }) => {
-      const visible = type === 'region' || zoom >= DISTRICT_LABEL_MIN_ZOOM;
+      const dushanbeCityReplacesRegionLabel = type === 'region'
+        && locationId === 'region-dushanbe'
+        && dushanbeCity !== undefined
+        && viewStateRef.current.showCities
+        && zoom >= CITY_VISIBILITY_ZOOM
+        && isInHierarchy(dushanbeCity, viewStateRef.current.regionId, viewStateRef.current.districtId);
+      const visible = (type === 'region' || zoom >= DISTRICT_LABEL_MIN_ZOOM)
+        && !dushanbeCityReplacesRegionLabel;
       element.style.display = visible ? '' : 'none';
       element.tabIndex = visible ? 0 : -1;
       element.setAttribute('aria-hidden', String(!visible));
@@ -755,7 +777,7 @@ export function TajikistanMap({ news = [], onGeographyFilterChange, onLocationSu
         content.className = 'location-popup news-location-popup';
         const availableBelow = map.getContainer().clientHeight - event.point.y - 28;
         content.style.maxHeight = `${Math.max(160, Math.min(360, availableBelow))}px`;
-        const articles = JSON.parse(String(feature.properties.articles_json || '[]')) as Array<{ title: string; source: string; confidence: number; evidence: string }>;
+        const articles = JSON.parse(String(feature.properties.articles_json || '[]')) as Array<{ title: string; url?: string; source: string; confidence: number; evidence: string }>;
         const articleCount = Number(feature.properties.article_count || articles.length);
         const locationId = String(feature.properties.location_id || '');
         const location = locationById.get(locationId);
@@ -763,9 +785,22 @@ export function TajikistanMap({ news = [], onGeographyFilterChange, onLocationSu
         const list = document.createElement('div');
         list.className = 'news-location-popup-list';
         for (const article of articles) {
-          const title = document.createElement('span'); title.textContent = article.title;
+          const articleUrl = safeNewsUrl(article.url);
+          const articleItem = document.createElement(articleUrl ? 'a' : 'article');
+          articleItem.className = 'news-location-popup-item';
+          if (articleUrl && articleItem instanceof HTMLAnchorElement) {
+            articleItem.href = articleUrl;
+            articleItem.target = '_blank';
+            articleItem.rel = 'noopener noreferrer';
+            articleItem.title = 'Открыть оригинальную статью';
+            articleItem.addEventListener('click', (clickEvent) => clickEvent.stopPropagation());
+          }
+          const title = document.createElement('span');
+          title.className = 'news-location-popup-title';
+          title.textContent = article.title;
           const evidence = document.createElement('small'); evidence.textContent = `${article.source} · ${(article.confidence * 100).toFixed(0)}% · ${article.evidence}`;
-          list.append(title, evidence);
+          articleItem.append(title, evidence);
+          list.append(articleItem);
         }
         const summaryButton = document.createElement('button');
         summaryButton.type = 'button';
