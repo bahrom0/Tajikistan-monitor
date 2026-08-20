@@ -1,8 +1,6 @@
 import { useState } from 'preact/hooks';
 import type { CanonicalLocation } from '../data/cities';
 
-export const TOWN_VISIBILITY_ZOOM = 6.3;
-
 export type LocationPoint = CanonicalLocation & {
   longitude: number;
   latitude: number;
@@ -10,9 +8,7 @@ export type LocationPoint = CanonicalLocation & {
 
 interface LocationLayerControlsProps {
   cityCount: number;
-  townCount: number;
   showCities: boolean;
-  showTowns: boolean;
   query: string;
   searchResults: LocationPoint[];
   selectedLocationId: string | null;
@@ -20,10 +16,8 @@ interface LocationLayerControlsProps {
   districts: CanonicalLocation[];
   selectedRegionId: string;
   selectedDistrictId: string;
-  townVisibilityZoom: number;
   getParentLabel: (location: LocationPoint) => string;
   onToggleCities: (visible: boolean) => void;
-  onToggleTowns: (visible: boolean) => void;
   onQueryChange: (query: string) => void;
   onRegionChange: (regionId: string) => void;
   onDistrictChange: (districtId: string) => void;
@@ -31,17 +25,13 @@ interface LocationLayerControlsProps {
   onClearSearch: () => void;
 }
 
-const locationTypeLabel = (type: LocationPoint['type']) => (
-  type === 'city' ? 'Город / Шаҳр' : 'Посёлок / Шаҳрак'
-);
+const locationTypeLabel = () => 'Город / Шаҳр';
 
 const optionLabel = (location: CanonicalLocation) => `${location.name_ru} · ${location.name_tg}`;
 
 export function LocationLayerControls({
   cityCount,
-  townCount,
   showCities,
-  showTowns,
   query,
   searchResults,
   selectedLocationId,
@@ -49,10 +39,8 @@ export function LocationLayerControls({
   districts,
   selectedRegionId,
   selectedDistrictId,
-  townVisibilityZoom,
   getParentLabel,
   onToggleCities,
-  onToggleTowns,
   onQueryChange,
   onRegionChange,
   onDistrictChange,
@@ -87,7 +75,7 @@ export function LocationLayerControls({
       >
       <div class="location-controls-header">
         <span>НАСЕЛЁННЫЕ ПУНКТЫ</span>
-        <strong>{cityCount + townCount}</strong>
+        <strong>{cityCount}</strong>
       </div>
 
       <div class="location-layer-switches" role="group" aria-label="Переключатели слоёв карты">
@@ -100,16 +88,6 @@ export function LocationLayerControls({
           <span class="location-layer-swatch city-swatch" aria-hidden="true" />
           <span>Города</span>
           <strong>{cityCount}</strong>
-        </button>
-        <button
-          type="button"
-          class={`location-layer-toggle town-layer${showTowns ? ' is-active' : ''}`}
-          aria-pressed={showTowns}
-          onClick={() => onToggleTowns(!showTowns)}
-        >
-          <span class="location-layer-swatch town-swatch" aria-hidden="true" />
-          <span>Посёлки</span>
-          <strong>{townCount}</strong>
         </button>
       </div>
 
@@ -147,7 +125,7 @@ export function LocationLayerControls({
                 <strong>{location.name_ru}</strong>
                 <span>{location.name_tg}</span>
               </span>
-              <small>{locationTypeLabel(location.type)} · {getParentLabel(location)}</small>
+              <small>{locationTypeLabel()} · {getParentLabel(location)}</small>
             </button>
           )) : (
             <div class="location-search-empty" role="status" aria-live="polite">
@@ -188,10 +166,7 @@ export function LocationLayerControls({
         <p class="location-filter-note">Выбранная территория подсвечивается по границам OpenStreetMap.</p>
       </div>
 
-      <p class="location-proof-note">
-        Опубликованы {townCount} поимённо подтверждённых посёлков. Реестровые расхождения проверяются.
-      </p>
-      <p class="location-zoom-note">Посёлки появляются при zoom {townVisibilityZoom.toFixed(1)}+, чтобы не перегружать карту.</p>
+      <p class="location-proof-note">На карте показаны области, официальные районы и города. Малые посёлки скрыты.</p>
       </aside>
     </div>
   );

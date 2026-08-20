@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { MarkdownContent } from './components/MarkdownContent';
+import { MarkdownContent, type CitationSource } from './components/MarkdownContent';
 import { TajikistanMap, type GeographyFilter, type LocationSummarySelection, type PlaceResearchSelection } from './components/TajikistanMap';
 import type { NewsItem, SourceStatus } from './types';
 
 const formatTime = (date: string) => new Intl.DateTimeFormat('ru-RU', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' }).format(new Date(date));
 type ResearchStage = { id: string; label: string; state: 'active' | 'done' | 'error' };
-type ResearchSource = { title: string; url: string; domain: string; favicon: string; publishedDate: string };
+type ResearchSource = CitationSource;
 type ResearchEvent =
   | { type: 'status'; id: string; label: string }
   | { type: 'sources'; items: ResearchSource[] }
@@ -177,9 +177,9 @@ export function App() {
             <div class="source-row" key={source.id}><i class={source.status} /><div><strong>{source.name}</strong><small>{source.status === 'online' ? `${source.count} записей` : source.status === 'degraded' ? 'изменилась разметка' : 'ожидание ответа'}</small></div><span>{source.status === 'online' ? 'OK' : source.status === 'degraded' ? 'WARN' : '—'}</span></div>)}
         </div>
         <div class="section-label">ОБЗОР</div>
-        <div class="metric-grid"><div><small>НОВОСТЕЙ</small><b>{news.length}</b></div><div><small>ТРЕВОГ</small><b class="warn">{news.filter(n => n.severity === 'alert').length}</b></div><div><small>ГОРОДОВ</small><b>16</b></div><div><small>РЕГИОНОВ</small><b>5</b></div></div>
+        <div class="metric-grid"><div><small>НОВОСТЕЙ</small><b>{news.length}</b></div><div><small>ТРЕВОГ</small><b class="warn">{news.filter(n => n.severity === 'alert').length}</b></div><div><small>ГОРОДОВ</small><b>18</b></div><div><small>РАЙОНОВ</small><b>47</b></div></div>
         <div class="section-label">ЛЕГЕНДА КАРТЫ</div>
-        <div class="legend"><span><i class="legend-city" /> Город</span><span><i class="legend-capital" /> Столица</span><span><i class="legend-border" /> Граница страны</span></div>
+        <div class="legend"><span><i class="legend-region" /> Область</span><span><i class="legend-district" /> Район</span><span><i class="legend-city" /> Город</span><span><i class="legend-capital" /> Столица</span><span><i class="legend-border" /> Граница страны</span></div>
         <div class="system-note"><strong>ТОЛЬКО ТАДЖИКИСТАН</strong><p>Глобальные военные, финансовые, авиационные и рекламные блоки удалены.</p></div>
       </aside>
 
@@ -214,14 +214,14 @@ export function App() {
       {placeResearch && <div class="research-trace" aria-live="polite" aria-label="Ход веб-исследования">
         <div class="research-trace-title"><span>EXA LIVE RESEARCH</span><b>{asking ? 'В ПРОЦЕССЕ' : researchStages.some((stage) => stage.state === 'error') ? 'ОШИБКА' : 'ГОТОВО'}</b></div>
         <ol class="research-steps">{researchStages.map((stage) => <li class={stage.state} key={stage.id}><i aria-hidden="true" /><span>{stage.label}</span></li>)}</ol>
-        {!!researchSources.length && <div class="research-sources"><div class="research-sources-label">ПОСЕЩЁННЫЕ САЙТЫ · {researchSources.length}</div><div class="research-source-icons">
-          {researchSources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" title={source.title} aria-label={`Открыть источник ${source.domain}`}>
+        {!!researchSources.some((source) => source.type === 'requested_web') && <div class="research-sources"><div class="research-sources-label">ПОСЕЩЁННЫЕ САЙТЫ · {researchSources.filter((source) => source.type === 'requested_web').length}</div><div class="research-source-icons">
+          {researchSources.filter((source) => source.type === 'requested_web').map((source) => <a key={source.id} href={source.url} target="_blank" rel="noreferrer" title={source.title} aria-label={`Открыть источник ${source.title}`}>
             <span class="research-favicon"><b aria-hidden="true">{source.domain.slice(0, 1).toUpperCase()}</b>{source.favicon && <img src={source.favicon} alt="" width="22" height="22" referrerPolicy="no-referrer" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}</span>
-            <small>{source.domain}</small>
+            <span class="research-source-copy"><strong>{source.title}</strong><small>{source.domain}</small></span>
           </a>)}
         </div></div>}
       </div>}
-      {answer && <div class="ai-answer" aria-live="polite"><div class="ai-answer-title">{placeResearch ? 'Ответ исследователя' : locationSummary ? 'Сумари новостей' : 'Понятное объяснение'}</div><MarkdownContent content={answer} /></div>}
+      {answer && <div class="ai-answer" aria-live="polite"><div class="ai-answer-title">{placeResearch ? 'Ответ исследователя' : locationSummary ? 'Сумари новостей' : 'Понятное объяснение'}</div><MarkdownContent content={answer} sources={placeResearch ? researchSources : []} /></div>}
       {selected?.url && <a href={selected.url} target="_blank" rel="noreferrer">Открыть официальный источник ↗</a>}
     </section></div>}
   </div>;

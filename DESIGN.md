@@ -48,3 +48,24 @@
 - Responsive and interaction behavior: geometry styling is zoom-responsive and does not change map controls, popups, hit targets, filters, markers or mobile layout.
 - Motion and accessibility: no animation or semantic interaction was added. Existing keyboard, reduced-motion and map-control behavior is unchanged.
 - Intentional deviation: the screenshot is a defect annotation rather than a target composition; only the duplicate silhouette and state-border weight are changed.
+
+## Multi-scale administrative hierarchy
+
+- Reference: the user request from 2026-08-18 for a region-first country view, all district names, unique settlement colors and circular point symbols.
+- Far zoom (`4.5–5.55`): only the five region geography classes are emphasized. GBAO `#315d8a`, Sughd `#76538f`, Khatlon `#9a553f`, Dushanbe `#2f8177`, and RRP `#718246`; compact region abbreviations sit at polygon-derived representative points.
+- District zoom (`5.55–6.95`): all 47 confirmed administrative polygons receive parent-region tinted fills, solid `0.9–1.7px` borders, circular label anchors and Russian names. Region borders remain visually stronger at `1.8–2.8px`. When labels collide, the smaller polygon keeps its round center while only its text waits for more zoom or a different viewport.
+- Settlement zoom: cities appear at zoom `5.9`, city labels at `6.85`, towns at `6.3`, and town labels at `7.45`. City hues are unique values across the blue-green range `154–230`; town hues are unique values across the amber-orange range `27–58`.
+- Settlement symbols: every place keeps a 44px interaction root while the visible geometry is circular. Cities use a 12px core with a 2px colored outer ring; towns use a 9px core with a 1px outer ring; Dushanbe uses a 14px double ring. Text retains a dark backing and a color-keyed left rule.
+- Color is redundant with text, size and hierarchy: region/district/city/town semantics never depend on hue alone. Existing popup, keyboard, search and selection behavior remains available.
+- Data limitation: the current source contains administrative polygons for regions and districts but only point coordinates for cities and towns. Thick city/town treatment therefore applies to marker boundaries; no municipal polygons are fabricated.
+- Persistent interaction: region labels remain visible at every zoom and compact into a circular 44px button after the country overview. District centers appear from zoom `5.65` onward and never disappear at stronger zoom; collision suppression is disabled from zoom `7.5`, when every district name has enough map space. Both region and district markers are keyboard-focusable buttons that select the polygon and open its existing details/research popup.
+
+## City-jurisdiction polygons
+
+- Reference: `codex-clipboard-31be8ee8-eb29-4ce7-bb5b-83a0750cdcd7.png` supplied on 2026-08-18 at approximately `979 × 663`. Orange circles and white arrows identify dark administrative gaps around cities of republican or regional subordination.
+- Geometry: 14 canonical cities with OSM level-6 administrative relations are rendered as real polygons. No circular or inferred municipal boundaries are fabricated; cities without an administrative relation remain point markers.
+- Layering: city fills and borders begin at zoom `5.55`, above district fills and below selection overlays. Each polygon reuses its city's unique blue-green marker hue at `0.22–0.34` fill opacity and `1.4–3px` round-joined border.
+- Interaction: `cities-hit` is queried before district and region hit layers. Clicking anywhere inside a city jurisdiction selects the canonical city, updates its parent-region filter, moves to its marker, highlights the whole city polygon and opens the city popup. Point markers retain their 44px keyboard/click target.
+- Selection: the active city receives `#5fffc4` at `0.26` opacity with a `3.2px #8effd5` outline. Color remains redundant with the city popup, point marker and text label.
+- Responsive and motion: no panel layout or breakpoint changed. Existing `650ms` map focus motion is retained and becomes instantaneous under `prefers-reduced-motion`.
+- Data provenance: geometry comes from explicit OpenStreetMap relation IDs under ODbL 1.0; canonical Russian/Tajik names and hierarchy continue to come from `locations.json`.

@@ -27,6 +27,14 @@ const relationByLocationId = {
   'district-nurobod': 3281949, 'district-rasht': 3281968, 'district-sangvor': 3281972,
   'district-tojikobod': 3281931, 'district-fayzobod': 3281936, 'district-rudaki': 3281973,
   'district-shahrinav': 3281948,
+  // Cities of republican/regional subordination occupy their own level-6
+  // territories in OSM. Without these polygons the map renders dark gaps
+  // between districts and routes clicks to the surrounding region.
+  'city-isfara': 3280683, 'city-konibodom': 3280684, 'city-panjakent': 3280687,
+  'city-istaravshan': 3281013, 'city-hisor': 3281935, 'city-roghun': 3281937,
+  'city-levakant': 3281940, 'city-tursunzoda': 3281944, 'city-kulob': 3281947,
+  'city-nurek': 3281959, 'city-vahdat': 3281970, 'city-khujand': 15520796,
+  'city-buston': 15520839, 'city-guliston': 15520864,
 };
 
 const same = (a, b) => a?.[0] === b?.[0] && a?.[1] === b?.[1];
@@ -84,14 +92,16 @@ function relationGeometry(relation, wayById, nodeById) {
 }
 
 const dataset = JSON.parse(await readFile(LOCATION_PATH, 'utf8'));
-const adminLocations = dataset.locations.filter(({ type }) => type === 'region' || type === 'district');
+const adminLocations = dataset.locations.filter(({ id, type }) => (
+  type === 'region' || type === 'district' || (type === 'city' && id in relationByLocationId)
+));
 const expectedIds = new Set(adminLocations.map(({ id }) => id));
 const mappingIds = new Set(Object.keys(relationByLocationId));
 const missingMappings = [...expectedIds].filter((id) => !mappingIds.has(id));
 const unknownMappings = [...mappingIds].filter((id) => !expectedIds.has(id));
 if (missingMappings.length || unknownMappings.length) throw new Error(`mapping mismatch: missing=${missingMappings.join(',')} unknown=${unknownMappings.join(',')}`);
 
-const relationIds = Object.values(relationByLocationId);
+const relationIds = [...new Set(Object.values(relationByLocationId))];
 const relationById = new Map();
 const wayById = new Map();
 const nodeById = new Map();
@@ -167,5 +177,5 @@ await writeFile(OUTPUT_PATH, serialized, 'utf8');
 await writeFile(OUTPUT_PATH.replace(/\.json$/, '.geojson'), serialized, 'utf8');
 
 const nameDifferences = features.filter((feature) => ![feature.properties.name_ru, feature.properties.name_tg].includes(feature.properties.osm_name));
-await writeFile(REPORT_PATH, `# Administrative boundary reconciliation\n\nGenerated: ${new Date().toISOString()}\n\n- Canonical regions: 5\n- Canonical districts: 47\n- Matched OSM relations: ${features.length}\n- Geometry source: OpenStreetMap via Overpass (ODbL 1.0)\n- Name differences requiring human review: ${nameDifferences.length}\n\n## Name differences\n\n${nameDifferences.length ? nameDifferences.map(({ properties }) => `- ${properties.location_id}: canonical RU/TJ = ${properties.name_ru} / ${properties.name_tg}; OSM = ${properties.osm_name}; relation/${properties.osm_relation_id}`).join('\n') : '- None'}\n\nOSM relation IDs are explicit and must be reviewed if an upstream relation is replaced. Official documents remain authoritative for names and hierarchy; OSM supplies geometry only.\n`, 'utf8');
+await writeFile(REPORT_PATH, `# Administrative boundary reconciliation\n\nGenerated: ${new Date().toISOString()}\n\n- Canonical regions: ${features.filter(({ properties }) => properties.location_type === 'region').length}\n- Canonical districts: ${features.filter(({ properties }) => properties.location_type === 'district').length}\n- City jurisdictions with OSM administrative geometry: ${features.filter(({ properties }) => properties.location_type === 'city').length}\n- Matched OSM relations: ${features.length}\n- Geometry source: OpenStreetMap API (ODbL 1.0)\n- Name differences requiring human review: ${nameDifferences.length}\n\n## Name differences\n\n${nameDifferences.length ? nameDifferences.map(({ properties }) => `- ${properties.location_id}: canonical RU/TJ = ${properties.name_ru} / ${properties.name_tg}; OSM = ${properties.osm_name}; relation/${properties.osm_relation_id}`).join('\n') : '- None'}\n\nOSM relation IDs are explicit and must be reviewed if an upstream relation is replaced. Official documents remain authoritative for names and hierarchy; OSM supplies geometry only.\n`, 'utf8');
 console.log(JSON.stringify({ features: features.length, nameDifferences: nameDifferences.length, output: OUTPUT_PATH }, null, 2));
