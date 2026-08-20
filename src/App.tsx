@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { MarkdownContent, type CitationSource } from './components/MarkdownContent';
 import { TajikistanMap, type GeographyFilter, type LocationSummarySelection, type PlaceResearchSelection } from './components/TajikistanMap';
+import { LandingPage } from './components/LandingPage';
 import {
   SunIcon,
   MoonIcon,
@@ -121,6 +122,49 @@ export function App() {
     return (localStorage.getItem('tj_monitor_lang') as 'ru' | 'tg') || 'ru';
   });
   const [refreshInterval, setRefreshInterval] = useState<number>(300000);
+  const [currentPath, setCurrentPath] = useState<string>(() => {
+    if (typeof window === 'undefined') return '/';
+    const accepted = localStorage.getItem('tj_monitor_privacy_accepted') === 'true';
+    if (window.location.pathname === '/monitor' && !accepted) {
+      window.history.replaceState(null, '', '/');
+      return '/';
+    }
+    return window.location.pathname === '/monitor' ? '/monitor' : '/';
+  });
+
+  const isPrivacyAccepted = () => {
+    return localStorage.getItem('tj_monitor_privacy_accepted') === 'true';
+  };
+
+  const navigateTo = (path: string) => {
+    if (path === '/monitor' && !isPrivacyAccepted()) {
+      window.history.pushState(null, '', '/');
+      setCurrentPath('/');
+      return;
+    }
+    window.history.pushState(null, '', path);
+    setCurrentPath(path);
+  };
+
+  const handleAcceptLanding = () => {
+    localStorage.setItem('tj_monitor_privacy_accepted', 'true');
+    navigateTo('/monitor');
+  };
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      if (path === '/monitor' && !isPrivacyAccepted()) {
+        window.history.replaceState(null, '', '/');
+        setCurrentPath('/');
+      } else {
+        setCurrentPath(path === '/monitor' ? '/monitor' : '/');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   // Apply theme to document
   useEffect(() => {
@@ -399,6 +443,17 @@ export function App() {
     setResearchSources([]);
     setAsking(false);
   };
+
+  if (currentPath !== '/monitor') {
+    return (
+      <LandingPage
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        onAccept={handleAcceptLanding}
+        initialLang={language}
+      />
+    );
+  }
 
   return (
     <div class="app-shell">
@@ -1083,6 +1138,24 @@ export function App() {
                     15 мин
                   </button>
                 </div>
+              </div>
+
+              <div class="settings-row">
+                <div class="settings-label">
+                  <strong>О платформе и приватности</strong>
+                  <small>Лендинг, правила и политика данных</small>
+                </div>
+                <button
+                  type="button"
+                  class="btn-secondary"
+                  style={{ padding: '8px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: '600' }}
+                  onClick={() => {
+                    setIsSettingsOpen(false);
+                    navigateTo('/');
+                  }}
+                >
+                  Открыть лендинг
+                </button>
               </div>
             </div>
           </section>
