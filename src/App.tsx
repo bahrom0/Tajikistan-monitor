@@ -1,6 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { MarkdownContent, type CitationSource } from './components/MarkdownContent';
 import { TajikistanMap, type GeographyFilter, type LocationSummarySelection, type PlaceResearchSelection } from './components/TajikistanMap';
+import {
+  SunIcon,
+  MoonIcon,
+  RefreshIcon,
+  SparklesIcon,
+  SearchIcon,
+  NewspaperIcon,
+  HourglassIcon,
+  ExternalLinkIcon,
+  CloseIcon,
+} from './components/icons';
 import type { NewsItem, SourceStatus } from './types';
 
 const formatTime = (date: string) =>
@@ -437,7 +448,7 @@ export function App() {
               title={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
               aria-label="Переключить тему"
             >
-              {theme === 'dark' ? '☀️' : '🌙'}
+              {theme === 'dark' ? <SunIcon size={18} /> : <MoonIcon size={18} />}
             </button>
             <button
               type="button"
@@ -446,7 +457,7 @@ export function App() {
               disabled={loading}
               title="Обновить данные"
             >
-              <span>↻</span>
+              <RefreshIcon size={15} class={loading ? 'icon-spin' : ''} />
               <span>{loading ? 'Обновление…' : 'Обновить'}</span>
             </button>
           </div>
@@ -569,7 +580,7 @@ export function App() {
 
             <div class="news-search-bar">
               <div class="search-input-wrapper">
-                <span class="search-icon">⌕</span>
+                <SearchIcon size={15} class="search-icon" />
                 <input
                   type="search"
                   value={query}
@@ -598,7 +609,7 @@ export function App() {
             <div class="news-feed-list" role="feed">
               {loading && !news.length ? (
                 <div class="news-empty-state">
-                  <span class="news-empty-icon">⏳</span>
+                  <span class="news-empty-icon"><HourglassIcon size={32} /></span>
                   <p>Загрузка официальных источников…</p>
                 </div>
               ) : filtered.map((item) => (
@@ -620,13 +631,16 @@ export function App() {
                   {item.description && <p>{item.description}</p>}
                   <div class="news-card-footer">
                     <span class="category-badge">{item.category}</span>
-                    <span class="ai-explain-btn">ИИ-обзор →</span>
+                    <span class="ai-explain-btn">
+                      <SparklesIcon size={12} />
+                      <span>ИИ-обзор</span>
+                    </span>
                   </div>
                 </article>
               ))}
               {!loading && !filtered.length && (
                 <div class="news-empty-state">
-                  <span class="news-empty-icon">📰</span>
+                  <span class="news-empty-icon"><NewspaperIcon size={32} /></span>
                   <p>По выбранным фильтрам новостей нет.</p>
                 </div>
               )}
@@ -708,7 +722,7 @@ export function App() {
                 </h2>
               </div>
               <button type="button" class="modal-close-btn" onClick={closeAi} aria-label="Закрыть">
-                ×
+                <CloseIcon size={16} />
               </button>
             </div>
 
@@ -728,7 +742,7 @@ export function App() {
                   onClick={() => void askAi()}
                   disabled={asking}
                 >
-                  <span>✨</span>
+                  <SparklesIcon size={16} />
                   <span>{asking ? 'Анализирую данные…' : 'Объяснить простыми словами'}</span>
                 </button>
               )}
@@ -778,7 +792,7 @@ export function App() {
                               title={source.title}
                             >
                               <span>{source.domain}</span>
-                              <span>↗</span>
+                              <ExternalLinkIcon size={12} />
                             </a>
                           ))}
                       </div>
@@ -803,7 +817,7 @@ export function App() {
               {selected?.url && (
                 <a href={selected.url} target="_blank" rel="noreferrer" class="modal-footer-link">
                   <span>Открыть официальный источник</span>
-                  <span>↗</span>
+                  <ExternalLinkIcon size={14} />
                 </a>
               )}
             </div>
@@ -826,7 +840,7 @@ export function App() {
                 onClick={() => setIsGeneralAiOpen(false)}
                 aria-label="Закрыть"
               >
-                ×
+                <CloseIcon size={16} />
               </button>
             </div>
 
@@ -854,7 +868,7 @@ export function App() {
                 onClick={() => void askGeneralAi()}
                 disabled={asking || !generalAiQuery.trim()}
               >
-                <span>✨</span>
+                <SparklesIcon size={16} />
                 <span>{asking ? 'ИИ думает…' : 'Отправить вопрос'}</span>
               </button>
 
@@ -884,7 +898,7 @@ export function App() {
                 onClick={() => setIsSettingsOpen(false)}
                 aria-label="Закрыть"
               >
-                ×
+                <CloseIcon size={16} />
               </button>
             </div>
 

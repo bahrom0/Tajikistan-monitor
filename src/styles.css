@@ -211,7 +211,7 @@ a:hover {
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: var(--radius-lg);
+  border-radius: 50%;
   background: var(--accent-subtle);
   color: var(--accent);
   margin-bottom: 24px;
@@ -221,6 +221,7 @@ a:hover {
 .sidebar-brand:hover {
   transform: scale(1.05);
   background: var(--accent-subtle-hover);
+  border-radius: 50%;
 }
 .sidebar-brand-icon {
   width: 22px;
@@ -249,7 +250,7 @@ a:hover {
   justify-content: center;
   width: 52px;
   height: 52px;
-  border-radius: var(--radius-lg);
+  border-radius: 50%;
   color: var(--text-secondary);
   background: transparent;
   position: relative;
@@ -259,12 +260,14 @@ a:hover {
 .nav-item-btn:hover {
   background: var(--bg-pill);
   color: var(--text-primary);
+  border-radius: 50%;
   transform: translateY(-1px);
 }
 
 .nav-item-btn.is-active {
   background: var(--accent);
   color: #ffffff;
+  border-radius: 50%;
   box-shadow: 0 4px 14px rgba(10, 132, 255, 0.4);
 }
 
@@ -408,10 +411,10 @@ a:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 14px;
+  padding: 8px 16px;
   background: var(--accent);
   color: #ffffff;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-full);
   font-size: 12px;
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(10, 132, 255, 0.3);
@@ -419,6 +422,7 @@ a:hover {
 .btn-primary:hover {
   background: var(--accent-hover);
   transform: translateY(-1px);
+  border-radius: var(--radius-full);
 }
 .btn-primary:disabled {
   opacity: 0.6;
@@ -429,16 +433,18 @@ a:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-md);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   background: var(--bg-pill);
   color: var(--text-secondary);
   border: 1px solid var(--border-subtle);
+  transition: all 0.15s ease;
 }
 .btn-icon:hover {
   background: var(--bg-pill-hover);
   color: var(--text-primary);
+  border-radius: 50%;
 }
 
 /* ==========================================================================
@@ -743,7 +749,14 @@ a:hover {
   filter: none;
 }
 
-/* Map Markers */
+/* Map Markers & Labels - Disable transitions on root elements so MapLibre transform is pinned tightly */
+.maplibregl-marker,
+.maplibregl-popup,
+.location-marker,
+.administrative-map-label {
+  transition: none !important;
+}
+
 .location-marker {
   position: absolute;
   width: 36px;
@@ -755,10 +768,9 @@ a:hover {
   border: none;
   cursor: pointer;
   z-index: 2;
-  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+  pointer-events: auto;
 }
 .location-marker:hover, .location-marker.is-selected {
-  transform: scale(1.25);
   z-index: 10;
 }
 
@@ -766,17 +778,29 @@ a:hover {
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--accent);
-  border: 2px solid var(--bg-base);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
-  transition: all 0.18s ease;
+  background: var(--marker-color, var(--accent));
+  border: 2px solid var(--bg-surface);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: transform 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.18s ease;
+  pointer-events: none;
 }
+.location-marker:hover .marker-dot,
+.location-marker.is-selected .marker-dot {
+  transform: scale(1.35);
+  box-shadow: 0 2px 8px var(--marker-glow);
+}
+
 .location-marker.city-marker.capital .marker-dot {
   width: 13px;
   height: 13px;
   background: #ffffff;
   border: 3px solid var(--accent);
   box-shadow: 0 2px 8px rgba(10, 132, 255, 0.5);
+}
+.location-marker.city-marker.capital:hover .marker-dot,
+.location-marker.city-marker.capital.is-selected .marker-dot {
+  transform: scale(1.3);
+  box-shadow: 0 4px 14px rgba(10, 132, 255, 0.65);
 }
 
 .location-marker .marker-label {
@@ -794,6 +818,7 @@ a:hover {
   font-weight: 600;
   white-space: nowrap;
   box-shadow: var(--shadow-sm);
+  pointer-events: none;
 }
 .location-marker.label-visible .marker-label {
   display: block;
@@ -818,6 +843,7 @@ a:hover {
   letter-spacing: -0.2px;
   box-shadow: var(--shadow-sm);
   white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease;
 }
 .administrative-map-label.is-selected b {
   border-color: var(--accent);
@@ -832,8 +858,43 @@ a:hover {
   border-radius: var(--radius-lg) !important;
   box-shadow: var(--shadow-popup) !important;
   color: var(--text-primary) !important;
-  padding: 14px 16px !important;
+  padding: 16px 36px 16px 18px !important;
+  position: relative !important;
 }
+
+.maplibregl-popup-close-button {
+  position: absolute !important;
+  top: 12px !important;
+  right: 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 50% !important;
+  background: var(--bg-pill) !important;
+  color: var(--text-secondary) !important;
+  font-size: 16px !important;
+  font-family: -apple-system, BlinkMacSystemFont, var(--font-sans) !important;
+  line-height: 1 !important;
+  border: 1px solid var(--border-subtle) !important;
+  cursor: pointer !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  transition: all 0.15s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  z-index: 10 !important;
+}
+
+.maplibregl-popup-close-button:hover {
+  background: var(--bg-pill-hover) !important;
+  color: var(--text-primary) !important;
+  transform: scale(1.08) !important;
+}
+
+.maplibregl-popup-close-button:active {
+  transform: scale(0.94) !important;
+}
+
 .maplibregl-popup-tip {
   display: none !important;
 }
@@ -863,19 +924,106 @@ a:hover {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-top: 6px;
-  padding-top: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px solid var(--border-subtle);
+  position: relative;
+}
+
+.location-research-period > span {
   font-size: 11px;
+  font-weight: 500;
   color: var(--text-secondary);
 }
-.location-research-period select {
-  padding: 4px 8px;
+
+.popup-select-wrapper {
+  position: relative;
+}
+
+.popup-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 5px 10px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.15s ease;
+}
+
+.popup-select-trigger:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-medium);
+}
+
+.popup-select-trigger.is-open {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.popup-select-chevron {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.popup-select-trigger.is-open .popup-select-chevron {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
+.popup-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 100;
+  min-width: 120px;
+  padding: 4px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-popup);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.popup-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
   border-radius: var(--radius-sm);
   color: var(--text-primary);
+  font-size: 11.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.popup-select-option:hover {
+  background: var(--bg-pill-hover);
+}
+
+.popup-select-option.is-selected {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.popup-select-check {
   font-size: 11px;
+  font-weight: 700;
+  color: var(--accent);
 }
 
 .location-research-button {
@@ -907,15 +1055,15 @@ a:hover {
   transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .location-controls-shell.is-collapsed {
-  transform: translateX(calc(100% + 20px));
+  transform: translateX(calc(100% + 16px));
 }
 
 .location-controls-toggle {
   position: absolute;
-  top: 12px;
-  left: -38px;
-  width: 38px;
-  height: 38px;
+  top: 40px;
+  left: -36px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -925,8 +1073,16 @@ a:hover {
   border-right: none;
   border-radius: var(--radius-md) 0 0 var(--radius-md);
   color: var(--text-primary);
-  font-size: 18px;
+  font-size: 16px;
   box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  z-index: 11;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.location-controls-toggle:hover {
+  background: var(--bg-surface);
+  color: var(--accent);
 }
 
 .location-controls {
@@ -940,7 +1096,7 @@ a:hover {
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-md);
   max-height: calc(100vh - 120px);
-  overflow-y: auto;
+  overflow: visible;
 }
 
 .location-controls-header {
@@ -1060,23 +1216,159 @@ a:hover {
   color: var(--text-tertiary);
   text-transform: uppercase;
 }
-.location-filter {
+/* Apple-style Custom Select */
+.apple-select-wrapper {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 100%;
 }
-.location-filter span {
+.apple-select-wrapper.is-open {
+  z-index: 60;
+}
+
+.apple-select-label {
   font-size: 10px;
+  font-weight: 600;
   color: var(--text-secondary);
 }
-.location-filter select {
-  padding: 7px 10px;
+
+.apple-select-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   color: var(--text-primary);
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
+
+.apple-select-trigger:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-medium);
+}
+
+.apple-select-trigger.is-open {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+  background: var(--bg-card);
+}
+
+.apple-select-value {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11.5px;
+}
+
+.apple-select-chevron {
+  flex-shrink: 0;
+  color: var(--text-secondary);
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.apple-select-trigger.is-open .apple-select-chevron {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+
+.apple-select-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  max-height: 220px;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-popup);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.apple-select-dropdown::-webkit-scrollbar {
+  width: 5px;
+}
+.apple-select-dropdown::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+
+.apple-select-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 4px;
+}
+
+.apple-select-group:not(:first-child) {
+  border-top: 1px solid var(--border-subtle);
+  margin-top: 4px;
+}
+
+.apple-select-group-header {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  padding: 4px 8px 2px;
+}
+
+.apple-select-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.apple-select-option:hover {
+  background: var(--bg-pill-hover);
+}
+
+.apple-select-option.is-selected {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.apple-select-option-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.apple-select-check {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
 .location-proof-note {
   font-size: 10px;
   color: var(--text-tertiary);
@@ -1259,14 +1551,34 @@ a:hover {
   padding: 48px 16px;
   text-align: center;
   color: var(--text-tertiary);
-  gap: 8px;
+  gap: 12px;
 }
 .news-empty-icon {
-  font-size: 28px;
-  color: var(--text-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--bg-pill);
+  color: var(--text-secondary);
 }
 .news-empty-state p {
   font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.icon-spin {
+  animation: spin-kf 1s linear infinite;
+}
+
+@keyframes spin-kf {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ==========================================================================

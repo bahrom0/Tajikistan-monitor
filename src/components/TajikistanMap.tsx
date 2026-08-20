@@ -359,21 +359,115 @@ const createPopupContent = (location: CanonicalLocation, onResearch?: (selection
     : 'Границы: административная геометрия OSM';
   const datasetDate = document.createElement('small');
   datasetDate.textContent = `Набор данных: ${location.dataset_date || 'дата не указана'}`;
-  const researchButton = document.createElement('button');
-  const periodLabel = document.createElement('label');
-  periodLabel.className = 'location-research-period';
+
+  const periodContainer = document.createElement('div');
+  periodContainer.className = 'location-research-period';
   const periodText = document.createElement('span');
   periodText.textContent = 'Период веб-поиска';
-  const periodSelect = document.createElement('select');
-  periodSelect.setAttribute('aria-label', 'Период поиска новостей в интернете');
-  for (const [value, label] of [['7', '7 дней'], ['30', '30 дней'], ['90', '3 месяца'], ['365', '1 год']]) {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = label;
-    option.selected = value === '30';
-    periodSelect.append(option);
-  }
-  periodLabel.append(periodText, periodSelect);
+
+  const periodDropdown = document.createElement('div');
+  periodDropdown.className = 'popup-select-wrapper';
+
+  let selectedPeriodValue = '30';
+  const periodOptions = [
+    { value: '7', label: '7 дней' },
+    { value: '30', label: '30 дней' },
+    { value: '90', label: '3 месяца' },
+    { value: '365', label: '1 год' },
+  ];
+
+  const triggerButton = document.createElement('button');
+  triggerButton.type = 'button';
+  triggerButton.className = 'popup-select-trigger';
+  triggerButton.setAttribute('aria-haspopup', 'listbox');
+  triggerButton.setAttribute('aria-expanded', 'false');
+
+  const triggerLabel = document.createElement('span');
+  triggerLabel.textContent = periodOptions.find((p) => p.value === selectedPeriodValue)?.label || '30 дней';
+
+  const chevronSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  chevronSvg.setAttribute('class', 'popup-select-chevron');
+  chevronSvg.setAttribute('width', '10');
+  chevronSvg.setAttribute('height', '10');
+  chevronSvg.setAttribute('viewBox', '0 0 12 12');
+  chevronSvg.setAttribute('fill', 'none');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M2.5 4.5L6 8L9.5 4.5');
+  path.setAttribute('stroke', 'currentColor');
+  path.setAttribute('stroke-width', '1.5');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+  chevronSvg.append(path);
+
+  triggerButton.append(triggerLabel, chevronSvg);
+
+  const menu = document.createElement('div');
+  menu.className = 'popup-select-dropdown';
+  menu.setAttribute('role', 'listbox');
+  menu.style.display = 'none';
+
+  const closeDropdown = () => {
+    menu.style.display = 'none';
+    triggerButton.classList.remove('is-open');
+    triggerButton.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('pointerdown', handleDocClick);
+  };
+
+  const handleDocClick = (event: MouseEvent | PointerEvent) => {
+    if (!periodDropdown.contains(event.target as Node)) {
+      closeDropdown();
+    }
+  };
+
+  const renderOptions = () => {
+    menu.innerHTML = '';
+    periodOptions.forEach((opt) => {
+      const optionBtn = document.createElement('button');
+      optionBtn.type = 'button';
+      optionBtn.className = `popup-select-option${opt.value === selectedPeriodValue ? ' is-selected' : ''}`;
+      optionBtn.setAttribute('role', 'option');
+      optionBtn.setAttribute('aria-selected', String(opt.value === selectedPeriodValue));
+
+      const optLabel = document.createElement('span');
+      optLabel.textContent = opt.label;
+      optionBtn.append(optLabel);
+
+      if (opt.value === selectedPeriodValue) {
+        const check = document.createElement('span');
+        check.className = 'popup-select-check';
+        check.textContent = '✓';
+        optionBtn.append(check);
+      }
+
+      optionBtn.addEventListener('click', (event) => {
+        event.stopPropagation();
+        selectedPeriodValue = opt.value;
+        triggerLabel.textContent = opt.label;
+        closeDropdown();
+      });
+
+      menu.append(optionBtn);
+    });
+  };
+
+  triggerButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const isOpen = menu.style.display !== 'none';
+    if (isOpen) {
+      closeDropdown();
+    } else {
+      renderOptions();
+      menu.style.display = 'flex';
+      triggerButton.classList.add('is-open');
+      triggerButton.setAttribute('aria-expanded', 'true');
+      document.addEventListener('pointerdown', handleDocClick);
+    }
+  });
+
+  periodDropdown.append(triggerButton, menu);
+  periodContainer.append(periodText, periodDropdown);
+
+  const researchButton = document.createElement('button');
   researchButton.type = 'button';
   researchButton.className = 'location-research-button';
   researchButton.textContent = ({
@@ -390,11 +484,11 @@ const createPopupContent = (location: CanonicalLocation, onResearch?: (selection
       nameTg: location.name_tg,
       locationType: location.type,
       parentLabel: getParentLabel(location),
-      periodDays: Number(periodSelect.value),
+      periodDays: Number(selectedPeriodValue),
     });
   });
 
-  content.append(nameRu, nameTg, type, parent, stableId, coordinates, datasetDate, periodLabel, researchButton);
+  content.append(nameRu, nameTg, type, parent, stableId, coordinates, datasetDate, periodContainer, researchButton);
   return content;
 };
 

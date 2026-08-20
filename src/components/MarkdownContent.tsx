@@ -1,5 +1,6 @@
 import { Fragment, type ComponentChildren } from 'preact';
 import { parseMarkdownBlocks } from '../lib/markdown.mjs';
+import { ExternalLinkIcon } from './icons';
 
 interface MarkdownContentProps {
   content: string;
@@ -57,7 +58,7 @@ function SourceCard({ source, keyValue }: { source: CitationSource; keyValue: st
       <strong>{source.title}</strong>
       <small><b>{source.id}</b><span>{source.domain}</span>{source.publishedDate && <time>{source.publishedDate.slice(0, 10)}</time>}</small>
     </span>
-    <i aria-hidden="true">↗</i>
+    <ExternalLinkIcon size={14} class="citation-source-icon" />
   </>;
   if (!source.url) return <span key={keyValue} class="citation-source-card is-unlinked">{content}</span>;
   return <a key={keyValue} class="citation-source-card" href={source.url} target="_blank" rel="noreferrer noopener" aria-label={`Открыть источник: ${source.title}`}>{content}</a>;
