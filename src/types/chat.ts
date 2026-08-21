@@ -83,7 +83,7 @@ export type ChatStreamEvent =
   | { type: 'sources'; items: CitationSource[] }
   | { type: 'tool_start'; id: string; name: string; label: string; args?: Record<string, unknown> }
   | { type: 'tool_done'; id: string; name: string; state?: 'done' | 'error'; resultSummary?: string }
-  | { type: 'title_generated'; conversationId: string; title: string }
+  | { type: 'title_generated'; conversationId: string; title: string; icon?: string }
   | { type: 'message_saved'; messageId: string; conversationId: string }
   | { type: 'error'; message: string }
   | { type: 'done' };

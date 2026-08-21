@@ -14,6 +14,27 @@ interface ChatLayoutProps {
   onNavigateMap?: () => void;
 }
 
+function getInitialChatModes(): ChatModes {
+  const defaultModes: ChatModes = {
+    webSearch: true,
+    dbSearch: true,
+    officialStrict: false,
+  };
+  if (typeof window === 'undefined') return defaultModes;
+  try {
+    const stored = localStorage.getItem('tj_chat_modes');
+    if (stored) {
+      const parsed = JSON.parse(stored) as Partial<ChatModes>;
+      return {
+        webSearch: typeof parsed.webSearch === 'boolean' ? parsed.webSearch : true,
+        dbSearch: typeof parsed.dbSearch === 'boolean' ? parsed.dbSearch : true,
+        officialStrict: typeof parsed.officialStrict === 'boolean' ? parsed.officialStrict : false,
+      };
+    }
+  } catch {}
+  return defaultModes;
+}
+
 export function ChatLayout({ language, initialConversationId }: ChatLayoutProps) {
   const isTg = language === 'tg';
 
@@ -27,12 +48,8 @@ export function ChatLayout({ language, initialConversationId }: ChatLayoutProps)
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
-  // Modes State
-  const [modes, setModes] = useState<ChatModes>({
-    webSearch: false,
-    dbSearch: true,
-    officialStrict: false,
-  });
+  // Modes State (webSearch is enabled by default)
+  const [modes, setModes] = useState<ChatModes>(getInitialChatModes);
 
   const handleToggleMode = (modeKey: keyof ChatModes) => {
     setModes((prev) => {
@@ -40,6 +57,9 @@ export function ChatLayout({ language, initialConversationId }: ChatLayoutProps)
       if (modeKey === 'officialStrict' && next.officialStrict) {
         next.dbSearch = true;
       }
+      try {
+        localStorage.setItem('tj_chat_modes', JSON.stringify(next));
+      } catch {}
       return next;
     });
   };
@@ -363,7 +383,18 @@ export function ChatLayout({ language, initialConversationId }: ChatLayoutProps)
             );
           } else if (event.type === 'title_generated') {
             setConversations((prev) =>
-              prev.map((c) => (c.id === event.conversationId ? { ...c, title: event.title } : c))
+              prev.map((c) =>
+                c.id === event.conversationId
+                  ? {
+                      ...c,
+                      title: event.title,
+                      metadata: {
+                        ...(c.metadata || {}),
+                        icon: event.icon || (c.metadata as Record<string, unknown> | undefined)?.icon,
+                      },
+                    }
+                  : c
+              )
             );
           } else if (event.type === 'message_saved') {
             savedAssistantMsgId = event.messageId;

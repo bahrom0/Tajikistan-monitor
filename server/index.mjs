@@ -936,12 +936,15 @@ async function handleStreamChat(req, res) {
 
     writeNdjson(res, { type: 'message_saved', messageId: assistantMsg.id, conversationId });
 
-    // Auto-generate title if conversation has default title or is new
+    // Auto-generate title & topic icon if conversation has default title or is new
     if (conv.title === 'Новый разговор' || isNewConv) {
       generateConversationTitle(userPrompt, assistantContent)
-        .then(async (newTitle) => {
+        .then(async (result) => {
+          const newTitle = typeof result === 'object' && result?.title ? result.title : result;
+          const topicIcon = typeof result === 'object' && result?.icon ? result.icon : 'message';
           if (newTitle && newTitle !== 'Новый разговор') {
-            await updateConversation(conversationId, { title: newTitle }, { sessionId, userId });
+            const meta = { ...(conv.metadata || {}), icon: topicIcon };
+            await updateConversation(conversationId, { title: newTitle, metadata: meta }, { sessionId, userId });
           }
         })
         .catch(() => {});

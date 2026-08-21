@@ -327,11 +327,50 @@ export async function truncateMessagesAfter(conversationId, messageId) {
   return msgs;
 }
 
-// Asynchronous title generator using lightweight prompt
-export async function generateConversationTitle(userPrompt, assistantResponse) {
+export const TOPIC_ICON_KEYS = [
+  'code',
+  'gamepad',
+  'search',
+  'brain',
+  'sparkles',
+  'newspaper',
+  'sun',
+  'trending',
+  'map',
+  'book',
+  'heart',
+  'music',
+  'message',
+];
+
+export function classifyTopicIcon(text = '') {
+  const lower = String(text).toLowerCase();
+  if (/код|программ|javascript|python|typescript|css|html|bug|error|git|api|sql|функци|разработк|сервер|backend|frontend|react|preact|linux|bash|docker/.test(lower)) return 'code';
+  if (/игр|гейм|играть|steam|ps5|xbox|dota|cs|minecraft|game|геймплей|квест|rpg/.test(lower)) return 'gamepad';
+  if (/погод|температур|дожд|снег|жар|градус|ветер|прогноз|климат|метео|сели|паводок/.test(lower)) return 'sun';
+  if (/курс|валют|доллар|сомони|рубл|евро|банк|деньг|финанс|цен|стоимост|нбт|экономик|бизнес|инвестиц/.test(lower)) return 'trending';
+  if (/психолог|чувств|стресс|отношен|депресси|тревог|мысл|душа|совет|мотиваци|переживан/.test(lower)) return 'brain';
+  if (/новост|событи|ховар|ази|происшеств|президент|правительств|указ|агентств|сми/.test(lower)) return 'newspaper';
+  if (/душанбе|худжанд|бохтар|куляб|хорог|таджикистан|тоҷикистон|район|город|гбао|согд|хатлон|варзоб|памир|туризм|карта/.test(lower)) return 'map';
+  if (/факт|почем|зачем|истори|книг|учеб|наук|правил|закон|язык|таджикск|перевод|литератур|культура/.test(lower)) return 'book';
+  if (/здоров|больниц|врач|лекарств|симптом|болезн|медицин|аптек|лечен|диета|спорт|тренировк/.test(lower)) return 'heart';
+  if (/музык|песн|трек|альбом|концерт|мелоди|певец|аудио/.test(lower)) return 'music';
+  if (/найди|поищ|поиск|провер|источник|интернет|информаци|гугл|яндекс/.test(lower)) return 'search';
+  if (/иде|придумай|напиши|креатив|стих|рассказ|ai|интеллект|нейросет|сочини/.test(lower)) return 'sparkles';
+  return 'message';
+}
+
+// Asynchronous title & topic icon generator using lightweight prompt
+export async function generateConversationTitle(userPrompt, assistantResponse = '') {
+  const combined = `${userPrompt} ${assistantResponse}`;
+  const fallbackIcon = classifyTopicIcon(combined);
+  const fallbackTitle = userPrompt.trim().replace(/^["'«»\s]+|["'«»\s]+$/g, '').slice(0, 50) || 'Новый разговор';
+
   if (!process.env.OPENAI_API_KEY) {
-    const clean = userPrompt.trim().replace(/^["'\s]+|["'\s]+$/g, '');
-    return clean.slice(0, 45) || 'Новый разговор';
+    return {
+      title: fallbackTitle,
+      icon: fallbackIcon,
+    };
   }
 
   try {
@@ -347,11 +386,30 @@ export async function generateConversationTitle(userPrompt, assistantResponse) {
         messages: [
           {
             role: 'system',
-            content: 'Ты создаешь краткие, емкие названия (2-5 слов) для диалогов на основе первого вопроса пользователя и ответа. Не используй кавычки, знаки препинания в конце, эмодзи или слова "Вопрос", "Диалог". Название должно быть на языке запроса (русский или таджикский).',
+            content: `Ты создаешь краткие емкие названия (2-5 слов) для диалогов и выбираешь одну наиболее подходящую иконку темы из доступного списка.
+Название должно быть на языке запроса пользователя (русский или таджикский), без кавычек и точек в конце.
+
+Доступные иконки темы (выбери строго одну из них):
+- "code" — Программирование, IT, разработка, скрипты, технологии
+- "gamepad" — Игры, гейминг, киберспорт, развлечения
+- "search" — Поиск информации, расследования, фактчекинг
+- "brain" — Психология, размышления, эмоции, мотивация, философия
+- "sparkles" — Идеи, креатив, AI, генерация текстов, творчество
+- "newspaper" — Новости, политика, официальные события, происшествия
+- "sun" — Погода, климат, природа, времена года
+- "trending" — Финансы, экономика, деньги, курсы валют, бизнес
+- "map" — Таджикистан, города, районы, география, туризм
+- "book" — Наука, история, книги, образование, язык
+- "heart" — Здоровье, медицина, спорт, образ жизни
+- "music" — Музыка, культура, искусство
+- "message" — Общий разговор, приветствие, прочее
+
+Ответь ТОЛЬКО в формате JSON:
+{"title": "Краткое название", "icon": "выбранная_иконка"}`,
           },
           {
             role: 'user',
-            content: `Вопрос пользователя: "${userPrompt.slice(0, 300)}"\nОтвет: "${assistantResponse.slice(0, 300)}"\nСгенерируй короткое название темы:`,
+            content: `Вопрос пользователя: "${userPrompt.slice(0, 300)}"\nОтвет: "${assistantResponse.slice(0, 300)}"`,
           },
         ],
       }),
@@ -360,16 +418,39 @@ export async function generateConversationTitle(userPrompt, assistantResponse) {
 
     if (res.ok) {
       const data = await res.json();
-      const title = data.choices?.[0]?.message?.content?.trim()?.replace(/^["'«»]+|["'«»]+$/g, '');
-      if (title && title.length >= 2) {
-        return title.slice(0, 60);
+      const raw = data.choices?.[0]?.message?.content?.trim() || '';
+      try {
+        const cleanJson = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+        const parsed = JSON.parse(cleanJson);
+        const parsedTitle = typeof parsed.title === 'string' ? parsed.title.trim().replace(/^["'«»]+|["'«»]+$/g, '').slice(0, 60) : '';
+        const parsedIcon = typeof parsed.icon === 'string' && TOPIC_ICON_KEYS.includes(parsed.icon.toLowerCase())
+          ? parsed.icon.toLowerCase()
+          : fallbackIcon;
+
+        if (parsedTitle && parsedTitle.length >= 2) {
+          return {
+            title: parsedTitle,
+            icon: parsedIcon,
+          };
+        }
+      } catch {
+        const singleTitle = raw.replace(/^["'«»]+|["'«»]+$/g, '').slice(0, 60);
+        if (singleTitle && singleTitle.length >= 2) {
+          return {
+            title: singleTitle,
+            icon: fallbackIcon,
+          };
+        }
       }
     }
   } catch (err) {
     console.warn('Title generation error:', err.message);
   }
 
-  return userPrompt.trim().slice(0, 45) || 'Новый разговор';
+  return {
+    title: fallbackTitle,
+    icon: fallbackIcon,
+  };
 }
 
 // Context optimization: sliding window

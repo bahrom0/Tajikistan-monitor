@@ -997,7 +997,7 @@ export function App() {
                         ? 'Сумари новостей'
                         : 'Понятное объяснение'}
                   </div>
-                  <MarkdownContent content={answer} sources={placeResearch ? researchSources : []} />
+                  <MarkdownContent content={answer} sources={placeResearch ? researchSources : []} isStreaming={asking} />
                 </div>
               )}
 

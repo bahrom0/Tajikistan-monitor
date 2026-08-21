@@ -1800,6 +1800,57 @@ a:hover {
   margin: 0 0 12px;
 }
 
+/* Gemini-style Smooth Word & Block Streaming Animation */
+@keyframes geminiStreamFadeIn {
+  0% {
+    opacity: 0.2;
+    filter: blur(1.5px);
+    transform: translateY(2px);
+  }
+  100% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes geminiCaretGlow {
+  0%, 100% {
+    opacity: 0.95;
+    transform: scale(1);
+    box-shadow: 0 0 10px rgba(10, 132, 255, 0.6), 0 0 3px rgba(10, 132, 255, 0.9);
+  }
+  50% {
+    opacity: 0.35;
+    transform: scale(0.85);
+    box-shadow: 0 0 4px rgba(10, 132, 255, 0.2);
+  }
+}
+
+.markdown-content.is-streaming {
+  will-change: contents;
+}
+
+.markdown-content.is-streaming > :last-child {
+  animation: geminiStreamFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.gemini-streaming-tail {
+  transition: color 0.15s ease, opacity 0.15s ease;
+}
+
+.gemini-stream-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  margin-left: 5px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, var(--accent) 0%, #60a5fa 100%);
+  vertical-align: -2px;
+  animation: geminiCaretGlow 0.9s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+}
+
 .citation-chip {
   display: inline-flex;
   align-items: center;
@@ -3286,10 +3337,30 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .chat-conv-icon {
   flex-shrink: 0;
   color: var(--text-tertiary);
+  transition: color 0.15s ease, transform 0.15s ease;
 }
 
+.chat-conv-item:hover .chat-conv-icon {
+  opacity: 0.95;
+}
+
+.chat-conv-icon.is-code { color: #38bdf8; }
+.chat-conv-icon.is-gamepad { color: #c084fc; }
+.chat-conv-icon.is-search { color: #60a5fa; }
+.chat-conv-icon.is-brain { color: #f472b6; }
+.chat-conv-icon.is-sparkles { color: #fbbf24; }
+.chat-conv-icon.is-news { color: #fb923c; }
+.chat-conv-icon.is-sun { color: #facc15; }
+.chat-conv-icon.is-finance { color: #34d399; }
+.chat-conv-icon.is-map { color: #22d3ee; }
+.chat-conv-icon.is-book { color: #a78bfa; }
+.chat-conv-icon.is-heart { color: #fb7185; }
+.chat-conv-icon.is-music { color: #e879f9; }
+.chat-conv-icon.is-message { color: var(--text-tertiary); }
+
 .chat-conv-item.is-active .chat-conv-icon {
-  color: var(--accent);
+  transform: scale(1.08);
+  filter: drop-shadow(0 0 6px currentColor);
 }
 
 .chat-conv-title {
@@ -3604,7 +3675,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   overflow-y: auto;
   padding: 24px 0 16px;
   position: relative;
-  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .chat-messages-inner-container {
@@ -3805,29 +3877,59 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   padding: 6px 0;
 }
 
+.chat-messages-wrapper {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  width: 100%;
+}
+
 .chat-scroll-bottom-pill {
   position: absolute;
-  bottom: 16px;
-  right: 32px;
-  width: 36px;
-  height: 36px;
+  bottom: 14px;
+  right: 24px;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-full);
   background: var(--bg-card);
-  border: 1px solid var(--border-medium);
-  box-shadow: var(--shadow-md);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  z-index: 10;
-  transition: all 0.15s ease;
+  z-index: 30;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: pillFadeIn 0.2s ease both;
+}
+
+@media (min-width: 860px) {
+  .chat-scroll-bottom-pill {
+    right: calc(50% - 370px);
+  }
+}
+
+@keyframes pillFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .chat-scroll-bottom-pill:hover {
   background: var(--bg-card-hover);
   border-color: var(--accent);
+  color: var(--accent);
   transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
 }
 
 /* --- Chat Composer --- */

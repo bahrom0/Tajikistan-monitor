@@ -1,5 +1,5 @@
 import { Fragment, type ComponentChildren } from 'preact';
-import { useState } from 'preact/hooks';
+import { useState, useEffect, useRef } from 'preact/hooks';
 import { parseMarkdownBlocks } from '../lib/markdown.mjs';
 import { ExternalLinkIcon, GlobeIcon } from './icons';
 import { ChatCodeBlock } from './chat/ChatCodeBlock';
@@ -7,6 +7,7 @@ import { ChatCodeBlock } from './chat/ChatCodeBlock';
 interface MarkdownContentProps {
   content: string;
   sources?: CitationSource[];
+  isStreaming?: boolean;
 }
 
 export interface CitationSource {
@@ -21,6 +22,68 @@ export interface CitationSource {
 
 const INLINE_TOKEN = /(\*\*[^*\n]+\*\*|~~[^~\n]+~~|`[^`\n]+`|\[[^\]\n]+\]\(https?:\/\/[^\s)]+\)|\[(?:N|W)\d+\]|\*[^*\n]+\*|_[^_\n]+_)/g;
 const SOURCE_LINE = /^\[((?:N|W)\d+)\](?:\s+https?:\/\/\S+)?$/;
+
+function useSmoothStream(targetText: string, isStreaming: boolean): string {
+  const [displayedText, setDisplayedText] = useState(targetText);
+  const targetRef = useRef(targetText);
+  targetRef.current = targetText;
+  const isStreamingRef = useRef(isStreaming);
+  isStreamingRef.current = isStreaming;
+  const frameRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!isStreaming) {
+      setDisplayedText(targetText);
+      if (frameRef.current) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+      return;
+    }
+
+    const step = () => {
+      setDisplayedText((curr) => {
+        const target = targetRef.current;
+        if (!isStreamingRef.current || curr.length >= target.length) {
+          return target;
+        }
+
+        const remaining = target.slice(curr.length);
+        const gap = remaining.length;
+
+        let stepCount = 1;
+        if (gap > 120) {
+          stepCount = Math.min(gap, Math.ceil(gap * 0.35));
+        } else if (gap > 40) {
+          const match = remaining.match(/^(\S+\s*|\s+)/);
+          stepCount = match ? match[0].length : Math.min(gap, 6);
+        } else {
+          const match = remaining.match(/^(\S{1,4}|\s+)/);
+          stepCount = match ? match[0].length : Math.min(gap, 2);
+        }
+
+        return curr + remaining.slice(0, stepCount);
+      });
+
+      if (isStreamingRef.current) {
+        frameRef.current = requestAnimationFrame(step);
+      }
+    };
+
+    if (!frameRef.current) {
+      frameRef.current = requestAnimationFrame(step);
+    }
+
+    return () => {
+      if (frameRef.current) {
+        cancelAnimationFrame(frameRef.current);
+        frameRef.current = null;
+      }
+    };
+  }, [isStreaming, targetText]);
+
+  return isStreaming ? displayedText : targetText;
+}
 
 function SourceFavicon({ source, size = 16 }: { source: CitationSource; size?: number }) {
   const [imgError, setImgError] = useState(false);
@@ -155,57 +218,77 @@ function renderInline(
   });
 }
 
-export function MarkdownContent({ content, sources = [] }: MarkdownContentProps) {
-  const blocks = parseMarkdownBlocks(content);
+export function MarkdownContent({ content, sources = [], isStreaming = false }: MarkdownContentProps) {
+  const smoothText = useSmoothStream(content, isStreaming);
+  const blocks = parseMarkdownBlocks(smoothText);
   const sourcesById = new Map(sources.map((source) => [source.id, source]));
   const sourcesByUrl = new Map(sources.filter((source) => source.url).map((source) => [source.url, source]));
   const inline = (text: string, key: string) => renderInline(text, key, sourcesById, sourcesByUrl);
+  const totalBlocks = blocks.length;
 
   return (
-    <div class="markdown-content">
+    <div class={`markdown-content${isStreaming ? ' is-streaming' : ''}`}>
       {blocks.map((block, index) => {
+        const isLastBlock = index === totalBlocks - 1;
         const key = `block-${index}`;
 
+        const cursor = isStreaming && isLastBlock ? (
+          <span class="gemini-stream-cursor" aria-hidden="true" />
+        ) : null;
+
         if (block.type === 'divider') {
-          return <hr key={key} class="chat-markdown-divider" />;
+          return (
+            <Fragment key={key}>
+              <hr class="chat-markdown-divider" />
+              {cursor}
+            </Fragment>
+          );
         }
 
         if (block.type === 'code') {
-          return <ChatCodeBlock key={key} code={block.code} language={block.language} />;
+          return (
+            <Fragment key={key}>
+              <ChatCodeBlock code={block.code} language={block.language} />
+              {cursor}
+            </Fragment>
+          );
         }
 
         if (block.type === 'table') {
           return (
-            <div key={key} class="chat-table-wrapper">
-              <table class="chat-table">
-                <thead>
-                  <tr>
-                    {block.headers.map((h, hi) => {
-                      const align = block.alignments?.[hi] || 'left';
-                      return (
-                        <th key={`th-${hi}`} style={{ textAlign: align }}>
-                          {inline(h, `${key}-th-${hi}`)}
-                        </th>
-                      );
-                    })}
-                  </tr>
-                </thead>
-                <tbody>
-                  {block.rows.map((row, ri) => (
-                    <tr key={`tr-${ri}`}>
-                      {row.map((cell, ci) => {
-                        const align = block.alignments?.[ci] || 'left';
+            <Fragment key={key}>
+              <div class="chat-table-wrapper">
+                <table class="chat-table">
+                  <thead>
+                    <tr>
+                      {block.headers.map((h, hi) => {
+                        const align = block.alignments?.[hi] || 'left';
                         return (
-                          <td key={`td-${ci}`} style={{ textAlign: align }}>
-                            {inline(cell, `${key}-td-${ri}-${ci}`)}
-                          </td>
+                          <th key={`th-${hi}`} style={{ textAlign: align }}>
+                            {inline(h, `${key}-th-${hi}`)}
+                          </th>
                         );
                       })}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {block.rows.map((row, ri) => (
+                      <tr key={`tr-${ri}`}>
+                        {row.map((cell, ci) => {
+                          const align = block.alignments?.[ci] || 'left';
+                          return (
+                            <td key={`td-${ci}`} style={{ textAlign: align }}>
+                              {inline(cell, `${key}-td-${ri}-${ci}`)}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {cursor}
+            </Fragment>
           );
         }
 
@@ -213,11 +296,15 @@ export function MarkdownContent({ content, sources = [] }: MarkdownContentProps)
           return (
             <ul key={key} class="chat-task-list">
               {block.items.map((item, itemIndex) => {
+                const isLastItem = isLastBlock && itemIndex === block.items.length - 1;
                 const itemKey = `${key}-task-${itemIndex}`;
                 return (
                   <li key={itemKey} class={`chat-task-item${item.checked ? ' is-checked' : ''}`}>
                     <input type="checkbox" checked={item.checked} readOnly class="chat-task-checkbox" />
-                    <span class="chat-task-text">{inline(item.text, itemKey)}</span>
+                    <span class="chat-task-text">
+                      {inline(item.text, itemKey)}
+                      {isLastItem ? cursor : null}
+                    </span>
                   </li>
                 );
               })}
@@ -226,31 +313,52 @@ export function MarkdownContent({ content, sources = [] }: MarkdownContentProps)
         }
 
         if (block.type === 'heading') {
-          if (block.level === 1) return <h2 key={key} class="chat-heading-h1">{inline(block.text, key)}</h2>;
-          if (block.level === 2) return <h3 key={key} class="chat-heading-h2">{inline(block.text, key)}</h3>;
-          if (block.level === 3) return <h4 key={key} class="chat-heading-h3">{inline(block.text, key)}</h4>;
-          if (block.level === 4) return <h5 key={key} class="chat-heading-h4">{inline(block.text, key)}</h5>;
-          return <h6 key={key} class="chat-heading-h5">{inline(block.text, key)}</h6>;
+          const Tag = block.level === 1 ? 'h2' : block.level === 2 ? 'h3' : block.level === 3 ? 'h4' : block.level === 4 ? 'h5' : 'h6';
+          const headingClass = `chat-heading-h${Math.min(block.level, 5)}`;
+          return (
+            <Tag key={key} class={headingClass}>
+              {inline(block.text, key)}
+              {cursor}
+            </Tag>
+          );
         }
 
         if (block.type === 'quote') {
-          return <blockquote key={key}>{inline(block.text, key)}</blockquote>;
+          return (
+            <blockquote key={key}>
+              {inline(block.text, key)}
+              {cursor}
+            </blockquote>
+          );
         }
 
         if (block.type === 'paragraph') {
-          return <p key={key}>{inline(block.text, key)}</p>;
+          return (
+            <p key={key} class={isStreaming && isLastBlock ? 'gemini-streaming-tail' : ''}>
+              {inline(block.text, key)}
+              {cursor}
+            </p>
+          );
         }
 
         const List = block.type === 'ordered-list' ? 'ol' : 'ul';
         return (
           <List key={key}>
             {block.items.map((item, itemIndex) => {
+              const isLastItem = isLastBlock && itemIndex === block.items.length - 1;
               const itemKey = `${key}-${itemIndex}`;
               const sourceId = SOURCE_LINE.exec(item)?.[1];
               const source = sourceId ? sourcesById.get(sourceId) : undefined;
               return (
                 <li key={itemKey} class={source ? 'citation-source-item' : ''}>
-                  {source ? <SourceCard source={source} keyValue={`${itemKey}-source`} /> : inline(item, itemKey)}
+                  {source ? (
+                    <SourceCard source={source} keyValue={`${itemKey}-source`} />
+                  ) : (
+                    <>
+                      {inline(item, itemKey)}
+                      {isLastItem ? cursor : null}
+                    </>
+                  )}
                 </li>
               );
             })}

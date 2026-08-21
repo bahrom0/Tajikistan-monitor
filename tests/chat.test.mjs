@@ -14,6 +14,8 @@ import {
   truncateMessagesAfter,
   generateConversationTitle,
   buildOptimizedContext,
+  classifyTopicIcon,
+  TOPIC_ICON_KEYS,
 } from '../server/lib/chat-persistence.mjs';
 
 test('parseMarkdownBlocks parses fenced code blocks and tables', () => {
@@ -208,4 +210,25 @@ test('chat persistence CRUD and sliding window context work correctly', async ()
   await deleteConversation(conv.id, { sessionId });
   const afterDelete = await listConversations({ sessionId });
   assert.ok(!afterDelete.some((c) => c.id === conv.id));
+});
+
+test('topic icon classification and title generation', async () => {
+  assert.equal(classifyTopicIcon('Напиши код на TypeScript для сортировки массива'), 'code');
+  assert.equal(classifyTopicIcon('Как пройти босса в игре Elden Ring?'), 'gamepad');
+  assert.equal(classifyTopicIcon('Какая погода завтра в Душанбе и сколько градусов?'), 'sun');
+  assert.equal(classifyTopicIcon('Какой сейчас официальный курс доллара к сомони в НБТ?'), 'trending');
+  assert.equal(classifyTopicIcon('Чувствую постоянный стресс и тревогу на работе'), 'brain');
+  assert.equal(classifyTopicIcon('Главные новости Таджикистана за сегодня'), 'newspaper');
+  assert.equal(classifyTopicIcon('Достопримечательности и города в ГБАО'), 'map');
+  assert.equal(classifyTopicIcon('История образования и книги поэтов Таджикистана'), 'book');
+  assert.equal(classifyTopicIcon('Симптомы простуды и как укрепить здоровье'), 'heart');
+  assert.equal(classifyTopicIcon('Популярная музыка и современные таджикские песни'), 'music');
+  assert.equal(classifyTopicIcon('Найди и проверь источник этой информации'), 'search');
+  assert.equal(classifyTopicIcon('Привет, как твои дела?'), 'message');
+
+  const titleResult = await generateConversationTitle('Как написать функцию на JavaScript', 'Вот пример функции...');
+  assert.ok(typeof titleResult === 'object');
+  assert.ok(titleResult.title.length > 0);
+  assert.ok(TOPIC_ICON_KEYS.includes(titleResult.icon));
+  assert.equal(titleResult.icon, 'code');
 });

@@ -149,41 +149,145 @@ export function ChatMessageList({
   const isTg = language === 'tg';
   const scrollViewportRef = useRef<HTMLDivElement>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [isAtBottom, setIsAtBottom] = useState(true);
   const [showScrollBottomBtn, setShowScrollBottomBtn] = useState(false);
 
-  // Check scroll position
+  // Tracks if the user intentionally scrolled up to read history
+  const userScrolledUpRef = useRef(false);
+  // Timestamp of last user wheel/touch action to avoid fighting user input
+  const lastUserInteractionRef = useRef(0);
+  const rafScrollRef = useRef<number | null>(null);
+
+  // Check scroll position & detect when user reaches bottom
   const handleScroll = () => {
     const el = scrollViewportRef.current;
     if (!el) return;
     const distanceToBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
-    const nearBottom = distanceToBottom < 80;
-    setIsAtBottom(nearBottom);
-    setShowScrollBottomBtn(!nearBottom && el.scrollHeight > el.clientHeight + 100);
+
+    // If user scrolled close to bottom (< 35px), re-enable auto-scroll
+    if (distanceToBottom < 35) {
+      userScrolledUpRef.current = false;
+      setShowScrollBottomBtn(false);
+    } else if (distanceToBottom > 70) {
+      // User is looking above the bottom
+      setShowScrollBottomBtn(true);
+    }
+  };
+
+  // Immediate detection of user intent on mousewheel / touch
+  const handleUserWheel = (e: WheelEvent) => {
+    lastUserInteractionRef.current = Date.now();
+    if (rafScrollRef.current) {
+      cancelAnimationFrame(rafScrollRef.current);
+      rafScrollRef.current = null;
+    }
+    // If user scrolled up, immediately disable auto-scroll
+    if (e.deltaY < 0) {
+      userScrolledUpRef.current = true;
+      setShowScrollBottomBtn(true);
+    }
+  };
+
+  const handleTouchStart = () => {
+    lastUserInteractionRef.current = Date.now();
+    if (rafScrollRef.current) {
+      cancelAnimationFrame(rafScrollRef.current);
+      rafScrollRef.current = null;
+    }
+  };
+
+  const handlePointerDown = () => {
+    lastUserInteractionRef.current = Date.now();
+    if (rafScrollRef.current) {
+      cancelAnimationFrame(rafScrollRef.current);
+      rafScrollRef.current = null;
+    }
   };
 
   const scrollToBottom = (smooth = true) => {
     const el = scrollViewportRef.current;
     if (!el) return;
-    el.scrollTo({
-      top: el.scrollHeight,
-      behavior: smooth ? 'smooth' : 'auto',
-    });
+
+    if (rafScrollRef.current) {
+      cancelAnimationFrame(rafScrollRef.current);
+      rafScrollRef.current = null;
+    }
+
+    userScrolledUpRef.current = false;
+    setShowScrollBottomBtn(false);
+
+    if (!smooth) {
+      el.scrollTop = el.scrollHeight;
+      return;
+    }
+
+    const start = el.scrollTop;
+    const target = el.scrollHeight - el.clientHeight;
+    if (target <= start) return;
+
+    const startTime = performance.now();
+    const duration = 240;
+
+    const step = (now: number) => {
+      // If user interacted while animating, abort immediately
+      if (userScrolledUpRef.current || Date.now() - lastUserInteractionRef.current < 400) {
+        rafScrollRef.current = null;
+        return;
+      }
+
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const ease = 1 - Math.pow(1 - progress, 3);
+      const currentTarget = el.scrollHeight - el.clientHeight;
+      el.scrollTop = start + (currentTarget - start) * ease;
+
+      if (progress < 1) {
+        rafScrollRef.current = requestAnimationFrame(step);
+      } else {
+        rafScrollRef.current = null;
+      }
+    };
+
+    rafScrollRef.current = requestAnimationFrame(step);
   };
 
-  // Auto-scroll when new streaming content arrives if user is at bottom
+  // Auto-scroll when new streaming content arrives ONLY if user has not scrolled up
   useEffect(() => {
-    if (isAtBottom) {
-      scrollToBottom(false);
+    if (userScrolledUpRef.current || Date.now() - lastUserInteractionRef.current < 250) {
+      return;
     }
-  }, [streamingContent, streamingThinking, streamingAgentSteps, streamingTimeline, messages, isAtBottom]);
 
-  // Scroll to bottom on initial message load
+    const el = scrollViewportRef.current;
+    if (!el) return;
+
+    const target = el.scrollHeight - el.clientHeight;
+    const distance = target - el.scrollTop;
+
+    // Only track if user is already near bottom (< 100px)
+    if (distance < 100) {
+      el.scrollTop = target;
+    }
+  }, [streamingContent, streamingThinking, streamingAgentSteps, streamingTimeline]);
+
+  // When messages load or new user message sent
   useEffect(() => {
     if (!loadingMessages && messages.length > 0) {
-      setTimeout(() => scrollToBottom(false), 50);
+      const lastMsg = messages[messages.length - 1];
+      if (lastMsg?.role === 'user') {
+        userScrolledUpRef.current = false;
+        setTimeout(() => scrollToBottom(true), 50);
+      } else if (!userScrolledUpRef.current) {
+        setTimeout(() => scrollToBottom(false), 50);
+      }
     }
-  }, [loadingMessages, messages.length]);
+  }, [messages.length, loadingMessages]);
+
+  useEffect(() => {
+    return () => {
+      if (rafScrollRef.current) {
+        cancelAnimationFrame(rafScrollRef.current);
+      }
+    };
+  }, []);
 
   const handleCopy = async (id: string, text: string) => {
     try {
@@ -205,8 +309,16 @@ export function ChatMessageList({
   const liveParsed = extractThinkingFromText(streamingContent, streamingThinking);
 
   return (
-    <div class="chat-messages-viewport" ref={scrollViewportRef} onScroll={handleScroll}>
-      <div class="chat-messages-inner-container">
+    <div class="chat-messages-wrapper">
+      <div
+        class="chat-messages-viewport"
+        ref={scrollViewportRef}
+        onScroll={handleScroll}
+        onWheel={handleUserWheel}
+        onTouchStart={handleTouchStart}
+        onPointerDown={handlePointerDown}
+      >
+        <div class="chat-messages-inner-container">
         {messages.map((msg, index) => {
           const isUser = msg.role === 'user';
           const isCopied = copiedId === msg.id;
@@ -359,24 +471,28 @@ export function ChatMessageList({
               {/* Streaming Content */}
               {streamingTimeline.length > 0 ? (
                 <div class="chat-response-timeline">
-                  {streamingTimeline.map((item) => item.type === 'assistant' ? (
-                    <MarkdownContent
-                      key={item.id}
-                      content={extractThinkingFromText(item.content).content}
-                      sources={streamingSources}
-                    />
-                  ) : item.type === 'tool' ? (
-                    <ToolActionBlock key={item.id} toolCall={item.toolCall} isTg={isTg} />
-                  ) : (
-                    <ChatAgentStepsList
-                      key={item.id}
-                      steps={[item.step]}
-                      isStreaming={item.step.stage !== 'done' && item.step.stage !== 'error'}
-                    />
-                  ))}
+                  {streamingTimeline.map((item, itemIdx) => {
+                    const isLastAssistant = item.type === 'assistant' && itemIdx === streamingTimeline.length - 1;
+                    return item.type === 'assistant' ? (
+                      <MarkdownContent
+                        key={item.id}
+                        content={extractThinkingFromText(item.content).content}
+                        sources={streamingSources}
+                        isStreaming={isStreaming && isLastAssistant}
+                      />
+                    ) : item.type === 'tool' ? (
+                      <ToolActionBlock key={item.id} toolCall={item.toolCall} isTg={isTg} />
+                    ) : (
+                      <ChatAgentStepsList
+                        key={item.id}
+                        steps={[item.step]}
+                        isStreaming={item.step.stage !== 'done' && item.step.stage !== 'error'}
+                      />
+                    );
+                  })}
                 </div>
               ) : liveParsed.content ? (
-                <MarkdownContent content={liveParsed.content} sources={streamingSources} />
+                <MarkdownContent content={liveParsed.content} sources={streamingSources} isStreaming={true} />
               ) : !liveParsed.thinking && !streamingAgentSteps.length ? (
                 <div class="chat-streaming-thinking-indicator">
                   <AppleSpinner size={16} />
@@ -387,19 +503,20 @@ export function ChatMessageList({
           </div>
         )}
       </div>
-
-      {/* Floating Scroll-to-Bottom Pill */}
-      {showScrollBottomBtn && (
-        <button
-          type="button"
-          class="chat-scroll-bottom-pill"
-          onClick={() => scrollToBottom(true)}
-          title={isTg ? 'Ба поён' : 'Прокрутить вниз'}
-          aria-label="Вниз"
-        >
-          <ArrowDownIcon size={15} />
-        </button>
-      )}
     </div>
+
+    {/* Floating Scroll-to-Bottom Pill (Fixed in place at the bottom of the stage) */}
+    {showScrollBottomBtn && (
+      <button
+        type="button"
+        class="chat-scroll-bottom-pill"
+        onClick={() => scrollToBottom(true)}
+        title={isTg ? 'Ба поён' : 'Прокрутить вниз'}
+        aria-label="Вниз"
+      >
+        <ArrowDownIcon size={16} />
+      </button>
+    )}
+  </div>
   );
 }

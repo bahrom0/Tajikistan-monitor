@@ -7,6 +7,17 @@ import {
   EditIcon,
   TrashIcon,
   MessageSquareIcon,
+  CodeIcon,
+  GamepadIcon,
+  BrainIcon,
+  SparklesIcon,
+  NewspaperIcon,
+  SunIcon,
+  TrendingUpIcon,
+  MapPinIcon,
+  BookOpenIcon,
+  HeartPulseIcon,
+  MusicIcon,
   AppleSpinner,
   CloseIcon,
   CheckIcon,
@@ -26,6 +37,60 @@ interface ChatSidebarProps {
   language: 'ru' | 'tg';
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
+}
+
+function getTopicIconKey(c: Conversation): string {
+  const metaIcon = (c.metadata as Record<string, unknown> | undefined)?.icon;
+  if (typeof metaIcon === 'string' && metaIcon) {
+    return metaIcon;
+  }
+  // Heuristic based on title if metadata icon is not set
+  const title = (c.title || '').toLowerCase();
+  if (/код|программ|javascript|python|typescript|css|html|bug|error|git|api|sql|функци|разработк|linux|bash|docker/.test(title)) return 'code';
+  if (/игр|гейм|играть|steam|ps5|xbox|dota|cs|minecraft|game|геймплей|квест|rpg/.test(title)) return 'gamepad';
+  if (/погод|температур|дожд|снег|жар|градус|ветер|прогноз|климат|метео|сели/.test(title)) return 'sun';
+  if (/курс|валют|доллар|сомони|рубл|евро|банк|деньг|финанс|цен|стоимост|нбт|экономик|бизнес/.test(title)) return 'trending';
+  if (/психолог|чувств|стресс|отношен|депресси|тревог|мысл|душа|совет|мотиваци/.test(title)) return 'brain';
+  if (/новост|событи|ховар|ази|происшеств|президент|правительств|указ|сми/.test(title)) return 'newspaper';
+  if (/душанбе|худжанд|бохтар|куляб|хорог|таджикистан|тоҷикистон|район|город|гбао|согд|хатлон|варзоб|карта|туризм/.test(title)) return 'map';
+  if (/факт|почем|зачем|истори|книг|учеб|наук|правил|закон|язык|таджикск|перевод|литератур/.test(title)) return 'book';
+  if (/здоров|больниц|врач|лекарств|симптом|болезн|медицин|аптек|диета|спорт/.test(title)) return 'heart';
+  if (/музык|песн|трек|альбом|концерт|мелоди|певец|аудио/.test(title)) return 'music';
+  if (/найди|поищ|поиск|провер|источник|интернет|информаци/.test(title)) return 'search';
+  if (/иде|придумай|напиши|креатив|стих|рассказ|ai|интеллект|нейросет/.test(title)) return 'sparkles';
+  return 'message';
+}
+
+function renderConversationIcon(c: Conversation) {
+  const iconKey = getTopicIconKey(c);
+  switch (iconKey) {
+    case 'code':
+      return <CodeIcon size={15} class="chat-conv-icon is-code" />;
+    case 'gamepad':
+      return <GamepadIcon size={15} class="chat-conv-icon is-gamepad" />;
+    case 'search':
+      return <SearchIcon size={15} class="chat-conv-icon is-search" />;
+    case 'brain':
+      return <BrainIcon size={15} class="chat-conv-icon is-brain" />;
+    case 'sparkles':
+      return <SparklesIcon size={15} class="chat-conv-icon is-sparkles" />;
+    case 'newspaper':
+      return <NewspaperIcon size={15} class="chat-conv-icon is-news" />;
+    case 'sun':
+      return <SunIcon size={15} class="chat-conv-icon is-sun" />;
+    case 'trending':
+      return <TrendingUpIcon size={15} class="chat-conv-icon is-finance" />;
+    case 'map':
+      return <MapPinIcon size={15} class="chat-conv-icon is-map" />;
+    case 'book':
+      return <BookOpenIcon size={15} class="chat-conv-icon is-book" />;
+    case 'heart':
+      return <HeartPulseIcon size={15} class="chat-conv-icon is-heart" />;
+    case 'music':
+      return <MusicIcon size={15} class="chat-conv-icon is-music" />;
+    default:
+      return <MessageSquareIcon size={15} class="chat-conv-icon is-message" />;
+  }
 }
 
 export function ChatSidebar({
@@ -204,7 +269,7 @@ export function ChatSidebar({
         role="button"
         tabIndex={0}
       >
-        <MessageSquareIcon size={15} class="chat-conv-icon" />
+        {renderConversationIcon(c)}
         <span class="chat-conv-title" title={c.title}>
           {c.title || (isTg ? 'Гуфтугӯи нав' : 'Новый разговор')}
         </span>
