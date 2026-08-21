@@ -6,7 +6,6 @@ export type ChatRole = 'user' | 'assistant' | 'system' | 'tool';
 
 export interface ChatModes {
   webSearch: boolean;
-  thinkMode: boolean;
   dbSearch: boolean;
   officialStrict: boolean;
 }
@@ -37,7 +36,8 @@ export interface ToolCallRecord {
 
 export type ChatTimelineItem =
   | { type: 'assistant'; id: string; content: string }
-  | { type: 'tool'; id: string; toolCall: ToolCallRecord };
+  | { type: 'tool'; id: string; toolCall: ToolCallRecord }
+  | { type: 'activity'; id: string; step: AgentStep };
 
 export interface ChatMessage {
   id: string;
@@ -79,6 +79,7 @@ export type ChatStreamEvent =
   | { type: 'token'; value: string }
   | { type: 'think_token'; value: string }
   | { type: 'agent_step'; step: AgentStep }
+  | { type: 'activity'; step: AgentStep }
   | { type: 'sources'; items: CitationSource[] }
   | { type: 'tool_start'; id: string; name: string; label: string; args?: Record<string, unknown> }
   | { type: 'tool_done'; id: string; name: string; state?: 'done' | 'error'; resultSummary?: string }

@@ -5,7 +5,6 @@ import {
   StopIcon,
   CloseIcon,
   GlobeIcon,
-  BrainIcon,
   DatabaseIcon,
   ShieldCheckIcon,
 } from '../icons';
@@ -110,23 +109,7 @@ export function ChatComposer({
               <span class={`chat-tool-indicator-dot${modes.webSearch ? ' is-on' : ''}`} />
             </button>
 
-            {/* 2. Think Mode */}
-            <button
-              type="button"
-              class={`chat-tool-toggle-btn${modes.thinkMode ? ' is-active' : ' is-inactive'}`}
-              onClick={() => onToggleMode('thinkMode')}
-              title={
-                isTg
-                  ? 'Ҳолати тафаккури амиқ: намоиши раванди фикрронии зеҳни сунъӣ'
-                  : 'Режим глубокого размышления: показ хода мыслей нейросети перед ответом'
-              }
-            >
-              <BrainIcon size={13} strokeWidth={2} />
-              <span>{isTg ? 'Андеша' : 'Раздумие'}</span>
-              <span class={`chat-tool-indicator-dot${modes.thinkMode ? ' is-on' : ''}`} />
-            </button>
-
-            {/* 3. Database Search */}
+            {/* 2. Database Search */}
             <button
               type="button"
               class={`chat-tool-toggle-btn${modes.dbSearch ? ' is-active' : ' is-inactive'}`}
@@ -142,7 +125,7 @@ export function ChatComposer({
               <span class={`chat-tool-indicator-dot${modes.dbSearch ? ' is-on' : ''}`} />
             </button>
 
-            {/* 4. Official Verified Mode */}
+            {/* 3. Official Verified Mode */}
             <button
               type="button"
               class={`chat-tool-toggle-btn${modes.officialStrict ? ' is-active' : ' is-inactive'}`}

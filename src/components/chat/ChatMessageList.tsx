@@ -64,6 +64,9 @@ function getStoredTimeline(message: ChatMessage): ChatTimelineItem[] {
     if (!item || typeof item !== 'object') return false;
     const record = item as Record<string, unknown>;
     if (record.type === 'assistant') return typeof record.id === 'string' && typeof record.content === 'string';
+    if (record.type === 'activity') {
+      return typeof record.id === 'string' && Boolean(record.step) && typeof record.step === 'object';
+    }
     if (record.type !== 'tool' || typeof record.id !== 'string' || !record.toolCall || typeof record.toolCall !== 'object') {
       return false;
     }
@@ -276,8 +279,14 @@ export function ChatMessageList({
                         content={extractThinkingFromText(item.content).content}
                         sources={msg.sources || []}
                       />
-                    ) : (
+                    ) : item.type === 'tool' ? (
                       <ToolActionBlock key={item.id} toolCall={item.toolCall} isTg={isTg} />
+                    ) : (
+                      <ChatAgentStepsList
+                        key={item.id}
+                        steps={[item.step]}
+                        isStreaming={item.step.stage !== 'done' && item.step.stage !== 'error'}
+                      />
                     ))}
                   </div>
                 ) : (
@@ -356,8 +365,14 @@ export function ChatMessageList({
                       content={extractThinkingFromText(item.content).content}
                       sources={streamingSources}
                     />
-                  ) : (
+                  ) : item.type === 'tool' ? (
                     <ToolActionBlock key={item.id} toolCall={item.toolCall} isTg={isTg} />
+                  ) : (
+                    <ChatAgentStepsList
+                      key={item.id}
+                      steps={[item.step]}
+                      isStreaming={item.step.stage !== 'done' && item.step.stage !== 'error'}
+                    />
                   ))}
                 </div>
               ) : liveParsed.content ? (

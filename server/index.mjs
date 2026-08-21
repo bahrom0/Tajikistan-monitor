@@ -12,6 +12,11 @@ import { canonicalPlaceContext, normalizeResearchPeriod, placeResearchFallback, 
 import { loadSupabaseMonitorCache } from './lib/supabase-cache.mjs';
 import { executeChatTool, getToolsForModes } from './lib/chat-tools.mjs';
 import {
+  buildToolNarration,
+  reasoningEffortLabel,
+  selectReasoningEffort,
+} from './lib/chat-behavior.mjs';
+import {
   createToolMarkupStreamFilter,
   normalizeToolArguments,
   normalizeToolName,
@@ -382,7 +387,7 @@ function sanitizeThinkTags(rawContent, rawThinking) {
   };
 }
 
-function buildSystemPromptChat(modes = {}, language = 'ru') {
+function buildSystemPromptChat(modes = {}, language = 'ru', reasoningEffort = 'medium') {
   let prompt = `Ты — ведущий национальный интеллектуальный ассистент и аналитик платформы мониторинга Таджикистана (Tajikistan Monitor).
 Ты предоставляешь точные, проверенные и емкие ответы по новостям, событиям, административно-территориальному устройству, погоде, курсам валют Национального банка и обстановке в регионах Таджикистана.
 
@@ -391,19 +396,10 @@ function buildSystemPromptChat(modes = {}, language = 'ru') {
 2. Когда вопрос касается свежих новостей, конкретного города/района, погоды, курсов валют или оперативных событий, ОБЯЗАТЕЛЬНО используй соответствующие инструменты.
 3. Ответ структурируй профессиональным, богатым Markdown: используй четкие заголовки (#, ##, ###), маркированные и нумерованные списки, таблицы (для курсов или статистики), цитаты (>), чекбоксы (- [x]) и ссылки.
 4. При ссылке на найденные новости используй маркеры [N1], [N2] или [W1], [W2].
-5. Отвечай на языке запроса пользователя (${language === 'tg' ? 'таджикский (тоҷикӣ)' : 'русский'}).`;
-
-  if (modes.thinkMode || modes.officialStrict) {
-    prompt += `\n\nРЕЖИМ ОБДУМЫВАНИЯ (THINK MODE):
-Перед формированием окончательного ответа ОБЯЗАТЕЛЬНО начни вывод с блока размышлений: <think>
-Здесь подробно опиши свой ход мыслей:
-- Анализ намерения пользователя
-- Оценка достаточности данных и стратегия поиска
-- Проверка фактов и сопоставление источников
-- Выводы и структура ответа
-</think>
-После закрывающего тега </think> сразу выводи чистый, структурированный финальный ответ пользователю.`;
-  }
+5. Отвечай на языке запроса пользователя (${language === 'tg' ? 'таджикский (тоҷикӣ)' : 'русский'}).
+6. Перед вызовом инструмента дай пользователю одно короткое понятное предложение о следующем действии. Между дополнительными поисками кратко объясняй, что именно уточняешь.
+7. Не раскрывай скрытую цепочку рассуждений и не печатай служебную разметку, XML, DSML или JSON вызова инструмента.
+8. Автоматически выбранная глубина работы: ${reasoningEffort}. Для high тщательно сопоставляй источники; для low отвечай быстро и без лишних этапов.`;
 
   if (modes.officialStrict) {
     prompt += `\n\nРЕЖИМ СТРОГОЙ ОФИЦИАЛЬНОЙ ВЕРИФИКАЦИИ:
@@ -433,8 +429,14 @@ async function handleStreamChat(req, res) {
   let conversationId = body.conversationId ? String(body.conversationId) : null;
   const userPrompt = String(body.message || '').trim();
   const enableTools = body.toolsEnabled !== false;
-  const modes = body.modes || { webSearch: false, thinkMode: false, dbSearch: true, officialStrict: false };
+  const requestedModes = body.modes || {};
+  const modes = {
+    webSearch: requestedModes.webSearch === true,
+    dbSearch: requestedModes.dbSearch !== false,
+    officialStrict: requestedModes.officialStrict === true,
+  };
   const language = body.language === 'tg' ? 'tg' : 'ru';
+  const reasoningEffort = selectReasoningEffort(userPrompt, modes);
 
   // Prepare conversation
   let conv = conversationId ? await getConversation(conversationId, { sessionId, userId }) : null;
@@ -518,9 +520,22 @@ async function handleStreamChat(req, res) {
     }
   };
 
+  const emitActivity = (step) => {
+    const existing = timeline.find((entry) => entry.type === 'activity' && entry.id === step.id);
+    if (existing) {
+      existing.step = step;
+    } else {
+      timeline.push({ type: 'activity', id: step.id, step });
+    }
+    const stepIndex = accumulatedAgentSteps.findIndex((entry) => entry.id === step.id);
+    if (stepIndex >= 0) accumulatedAgentSteps[stepIndex] = step;
+    else accumulatedAgentSteps.push(step);
+    writeNdjson(res, { type: 'activity', step });
+  };
+
   try {
     const activeTools = getToolsForModes(modes);
-    const systemPrompt = buildSystemPromptChat(modes, language);
+    const systemPrompt = buildSystemPromptChat(modes, language, reasoningEffort);
 
     // Load past messages for context
     const allMessages = await listMessages(conversationId);
@@ -549,6 +564,7 @@ async function handleStreamChat(req, res) {
 
       if (promptLower.includes('курс') || promptLower.includes('доллар') || promptLower.includes('валют') || promptLower.includes('погод') || promptLower.includes('метео')) {
         const fallbackTool = { id: 't1', name: 'get_weather_and_rates', label: 'Запрос курсов НБТ и метеоданных…', state: 'running', args: { type: 'all' } };
+        emitAssistantToken(buildToolNarration([fallbackTool], language, false));
         startTimelineTool(fallbackTool);
         writeNdjson(res, { type: 'tool_start', ...fallbackTool });
         const resTool = await executeChatTool('get_weather_and_rates', { type: 'all' }, context);
@@ -589,6 +605,7 @@ async function handleStreamChat(req, res) {
       } else {
         const toolToUse = modes.webSearch ? 'search_web_exa' : 'search_news';
         const fallbackTool = { id: 't1', name: toolToUse, label: 'Поиск материалов…', state: 'running', args: { query: userPrompt || 'Таджикистан', limit: 4 } };
+        emitAssistantToken(buildToolNarration([fallbackTool], language, false));
         startTimelineTool(fallbackTool);
         writeNdjson(res, { type: 'tool_start', ...fallbackTool });
         const resTool = await executeChatTool(toolToUse, { query: userPrompt || 'Таджикистан', limit: 4 }, context);
@@ -623,28 +640,6 @@ async function handleStreamChat(req, res) {
         }
       }
 
-      // If Think mode is enabled, stream simulated thought chain first
-      if (modes.thinkMode || modes.officialStrict) {
-        const thoughtStep = {
-          id: `step_${Date.now()}_3`,
-          stage: 'thinking',
-          label: 'Анализ и сопоставление фактов...',
-          thought: `1. Пользователь запросил информацию: "${userPrompt}".\n2. Проверены источники и база данных.\n3. Сформирован структурированный ответ с таблицами и ссылками.`,
-          timestamp: Date.now(),
-        };
-        accumulatedAgentSteps.push(thoughtStep);
-        writeNdjson(res, { type: 'agent_step', step: thoughtStep });
-
-        const simulatedThoughts = `Анализирую запрос пользователя: "${userPrompt}"...\nПроверяю наличие оперативных данных в базе мониторинга.\nДанные найдены. Формирую структурированный ответ.`;
-        for (const word of simulatedThoughts.split(' ')) {
-          if (abortController.signal.aborted) break;
-          const chunk = `${word} `;
-          assistantThinking += chunk;
-          writeNdjson(res, { type: 'think_token', value: chunk });
-          await new Promise((r) => setTimeout(r, 15));
-        }
-      }
-
       // Stream fallback tokens
       const words = fallbackAnswer.split(' ');
       for (const word of words) {
@@ -656,18 +651,43 @@ async function handleStreamChat(req, res) {
     } else {
       // Full LLM execution with tool-calling loop
       let currentMessages = [...messagesContext];
-      const maxToolIterations = 3;
+      const maxToolIterations = reasoningEffort === 'high' ? 4 : reasoningEffort === 'low' ? 2 : 3;
       let toolIterations = 0;
       let round = 0;
 
       while (round <= maxToolIterations) {
         round++;
+        const roundContentStart = assistantContent.length;
         const allowToolsThisRound = enableTools && toolIterations < maxToolIterations && activeTools.length > 0;
+        const activityId = `activity_round_${round}_${Date.now()}`;
+        const activityStartLabel = round === 1
+          ? reasoningEffortLabel(reasoningEffort, language)
+          : (language === 'tg' ? 'Муқоисаи натиҷаҳои ҷустуҷӯ' : 'Сопоставление результатов поиска');
+        emitActivity({
+          id: activityId,
+          stage: 'thinking',
+          label: activityStartLabel,
+          timestamp: Date.now(),
+        });
+        let activityFinished = false;
+        const finishActivity = () => {
+          if (activityFinished) return;
+          activityFinished = true;
+          emitActivity({
+            id: activityId,
+            stage: 'done',
+            label: round === 1
+              ? (language === 'tg' ? 'Дархост таҳлил шуд' : 'Запрос проанализирован')
+              : (language === 'tg' ? 'Натиҷаҳо муқоиса шуданд' : 'Результаты сопоставлены'),
+            timestamp: Date.now(),
+          });
+        };
         const llmBody = {
           model: process.env.OPENAI_MODEL || 'gpt-4.1-mini',
           temperature: 0.3,
           messages: currentMessages,
           stream: true,
+          reasoning_effort: reasoningEffort,
         };
 
         if (allowToolsThisRound) {
@@ -675,16 +695,29 @@ async function handleStreamChat(req, res) {
           llmBody.tool_choice = 'auto';
         }
 
-        const upstreamRes = await fetch(resolveChatCompletionsUrl(process.env.OPENAI_BASE_URL), {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-            Accept: 'text/event-stream',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(llmBody),
-          signal: abortController.signal,
-        });
+        const requestProvider = (requestBody) => fetch(resolveChatCompletionsUrl(process.env.OPENAI_BASE_URL), {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+              Accept: 'text/event-stream',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody),
+            signal: abortController.signal,
+          });
+
+        let upstreamRes = await requestProvider(llmBody);
+        if (!upstreamRes.ok && (upstreamRes.status === 400 || upstreamRes.status === 422)) {
+          await upstreamRes.text().catch(() => '');
+          const compatibleBody = { ...llmBody };
+          delete compatibleBody.reasoning_effort;
+          console.warn('chat_reasoning_effort_unsupported', {
+            model: llmBody.model,
+            effort: reasoningEffort,
+            status: upstreamRes.status,
+          });
+          upstreamRes = await requestProvider(compatibleBody);
+        }
 
         if (!upstreamRes.ok) {
           throw new Error(`AI provider: HTTP ${upstreamRes.status}`);
@@ -723,6 +756,7 @@ async function handleStreamChat(req, res) {
 
           // Check delta for text content
           const deltaContent = choice.delta?.content;
+          if (deltaContent || choice.delta?.tool_calls) finishActivity();
           if (deltaContent) {
             roundAssistantText += deltaContent;
             toolMarkupFilter.feed(deltaContent);
@@ -743,6 +777,7 @@ async function handleStreamChat(req, res) {
 
         toolMarkupFilter.flush();
         thinkParser.flush();
+        finishActivity();
 
         // Providers may serialize tool calls as text even when the OpenAI tool
         // contract is supplied. Parse the complete round, but never expose the
@@ -770,6 +805,14 @@ async function handleStreamChat(req, res) {
         const allowedToolNames = new Set(activeTools.map((tool) => tool.function.name));
         pendingToolCalls = pendingToolCalls.filter((tc) => allowedToolNames.has(tc.name));
 
+        for (const tc of pendingToolCalls) {
+          let parsedArgs = {};
+          try {
+            parsedArgs = JSON.parse(tc.arguments || '{}');
+          } catch {}
+          tc.args = normalizeToolArguments(tc.name, parsedArgs);
+        }
+
         if (pendingToolCalls.length > 0 && allowToolsThisRound) {
           toolIterations++;
           currentMessages.push({
@@ -782,12 +825,12 @@ async function handleStreamChat(req, res) {
             })),
           });
 
+          if (assistantContent.length === roundContentStart) {
+            emitAssistantToken(buildToolNarration(pendingToolCalls, language, toolIterations > 1));
+          }
+
           for (const tc of pendingToolCalls) {
-            let parsedArgs = {};
-            try {
-              parsedArgs = JSON.parse(tc.arguments || '{}');
-            } catch {}
-            parsedArgs = normalizeToolArguments(tc.name, parsedArgs);
+            const parsedArgs = tc.args;
 
             const isSearch = tc.name === 'search_news' || tc.name === 'search_web_exa';
             const toolLabel =

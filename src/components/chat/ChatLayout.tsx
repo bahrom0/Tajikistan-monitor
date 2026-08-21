@@ -30,7 +30,6 @@ export function ChatLayout({ language, initialConversationId }: ChatLayoutProps)
   // Modes State
   const [modes, setModes] = useState<ChatModes>({
     webSearch: false,
-    thinkMode: false,
     dbSearch: true,
     officialStrict: false,
   });
@@ -39,7 +38,6 @@ export function ChatLayout({ language, initialConversationId }: ChatLayoutProps)
     setModes((prev) => {
       const next = { ...prev, [modeKey]: !prev[modeKey] };
       if (modeKey === 'officialStrict' && next.officialStrict) {
-        next.thinkMode = true;
         next.dbSearch = true;
       }
       return next;
@@ -233,7 +231,7 @@ export function ChatLayout({ language, initialConversationId }: ChatLayoutProps)
     setIsStreaming(true);
     setStreamingContent('');
     setStreamingThinking('');
-    setIsThinkingActive(Boolean(modes.thinkMode || modes.officialStrict));
+    setIsThinkingActive(false);
     setStreamingSources([]);
     setStreamingToolCalls([]);
     setStreamingAgentSteps([]);
@@ -300,6 +298,16 @@ export function ChatLayout({ language, initialConversationId }: ChatLayoutProps)
             const step = event.step;
             accumulatedAgentSteps = [...accumulatedAgentSteps.filter((s) => s.id !== step.id), step];
             setStreamingAgentSteps((curr) => [...curr.filter((s) => s.id !== step.id), step]);
+          } else if (event.type === 'activity') {
+            const step = event.step;
+            accumulatedAgentSteps = [...accumulatedAgentSteps.filter((s) => s.id !== step.id), step];
+            accumulatedTimeline = accumulatedTimeline.some((item) => item.type === 'activity' && item.id === step.id)
+              ? accumulatedTimeline.map((item) =>
+                  item.type === 'activity' && item.id === step.id ? { ...item, step } : item
+                )
+              : [...accumulatedTimeline, { type: 'activity', id: step.id, step }];
+            setStreamingAgentSteps(accumulatedAgentSteps);
+            setStreamingTimeline(accumulatedTimeline);
           } else if (event.type === 'sources') {
             const existingIds = new Set(accumulatedSources.map((s) => s.id));
             const fresh = event.items.filter((s) => !existingIds.has(s.id));

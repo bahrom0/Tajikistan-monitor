@@ -3,6 +3,7 @@ import test from 'node:test';
 import { parseMarkdownBlocks } from '../src/lib/markdown.mjs';
 import { CHAT_TOOLS_DEFINITIONS, executeChatTool } from '../server/lib/chat-tools.mjs';
 import { createToolMarkupStreamFilter, normalizeToolArguments, parseTextToolCalls } from '../server/lib/chat-tool-protocol.mjs';
+import { buildToolNarration, selectReasoningEffort } from '../server/lib/chat-behavior.mjs';
 import {
   createConversation,
   listConversations,
@@ -90,6 +91,25 @@ test('decorated DSML opening tags and native argument aliases are normalized', (
     location_id: 'Худжанд',
     query: 'Худжанд',
   });
+});
+
+test('chat selects effort automatically and narrates tool use', () => {
+  assert.equal(selectReasoningEffort('Какая погода в Душанбе?'), 'low');
+  assert.equal(selectReasoningEffort('Расскажи о последних событиях в Душанбе'), 'medium');
+  assert.equal(selectReasoningEffort('Подробно проанализируй причины и сравни официальные источники'), 'high');
+  assert.equal(selectReasoningEffort('Проверь факт', { officialStrict: true }), 'high');
+
+  const narration = buildToolNarration([
+    { name: 'search_web_exa', args: { query: 'новости Душанбе' } },
+  ], 'ru', false);
+  assert.match(narration, /Сейчас поищу/);
+  assert.match(narration, /новости Душанбе/);
+
+  const parallel = buildToolNarration([
+    { name: 'search_web_exa', args: { query: 'Худжанд' } },
+    { name: 'search_news', args: { query: 'Душанбе' } },
+  ], 'ru', true);
+  assert.match(parallel, /несколько направлений/);
 });
 
 test('executeChatTool handles search_news and get_location_info', async () => {

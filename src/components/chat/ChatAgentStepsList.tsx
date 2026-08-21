@@ -16,7 +16,7 @@ export function ChatAgentStepsList({ steps = [], isStreaming = false }: ChatAgen
       <div class="chat-agent-steps-list">
         {steps.map((step, index) => {
           const isLast = index === steps.length - 1;
-          const isActive = isStreaming && isLast;
+          const isActive = isStreaming && isLast && step.stage !== 'done' && step.stage !== 'error';
 
           return (
             <div key={step.id || `step-${index}`} class={`chat-agent-step-chip is-${step.stage}${isActive ? ' is-active' : ''}`}>
