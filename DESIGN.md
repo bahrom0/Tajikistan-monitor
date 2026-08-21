@@ -1,5 +1,16 @@
 # Tajikistan Monitor UI rules
 
+## AI chat Markdown rendering
+
+- References: `codex-clipboard-be9c7f11-7efa-4644-a175-aecc88fae294.png` and `codex-clipboard-f2740b79-04d8-4cb7-8826-c80291c6b4ae.png`, supplied on 2026-08-21. The green annotations identify broken Markdown output; they are defect markup, not UI elements to reproduce.
+- Target: assistant messages in the chat route at desktop widths shown by the references and responsive widths down to `320px`. The existing light/dark chat composition and citation chips remain authoritative.
+- Typography: message copy is `14px/1.68` on desktop and `13.5px/1.68` below `640px`. Heading levels render from `19px` down to `13px`, with `600–700` weight and `1.35–1.45` line height. Paragraph and list rhythm is `12px`.
+- Tables: wrapper radius uses `--radius-md`, border uses `--border-medium`, spacing is `16px`, and the table has a `520px` desktop / `460px` mobile minimum width with native horizontal overflow. Headers use a 12% accent mix, cells use `10px 14px`, and even/hover rows use existing card tokens.
+- Parsing behavior: GFM-style tables accept optional outer pipes, alignment markers, escaped pipes and a missing trailing pipe. Fenced code and table rows bypass AI list-recovery heuristics. Standalone or joined ATX headings are recovered without exposing `###` markers. Raw HTML is never injected into the DOM.
+- States and accessibility: links keep visible keyboard focus, tables remain horizontally scrollable by keyboard/touch, and color is not used to replace text. Citation chips retain their existing labels and favicons.
+- Motion: table hover uses the existing immediate surface state; no content animation is added. Existing reduced-motion behavior is unchanged.
+- Intentional deviation: the screenshots show rendering defects rather than a desired visual redesign. Green arrows, circles and boxes are not reproduced; only Markdown structure, spacing and responsive presentation are corrected.
+
 ## Map popup and label fixes
 
 - References: the three user-supplied screenshots from 2026-08-15 showing an overflowing news popup, overlapping place/news popups, and crowded labels at country zoom.
