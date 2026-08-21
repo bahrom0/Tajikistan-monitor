@@ -163,7 +163,7 @@ export function ChatComposer({
                 title={isTg ? 'Фиристодан' : 'Отправить (Enter)'}
                 aria-label="Отправить"
               >
-                <SendIcon size={15} />
+                <SendIcon size={16} strokeWidth={2.25} />
               </button>
             )}
           </div>

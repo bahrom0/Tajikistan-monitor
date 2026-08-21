@@ -511,8 +511,8 @@ export function SendIcon({ size = 16, strokeWidth = 2, class: className = '', ..
       aria-hidden="true"
       {...props}
     >
-      <path d="m22 2-7 20-4-9-9-4Z" />
-      <path d="M22 2 11 13" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+      <polyline points="12 5 19 12 12 19" />
     </svg>
   );
 }
