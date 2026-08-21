@@ -2,6 +2,8 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { MarkdownContent, type CitationSource } from './components/MarkdownContent';
 import { TajikistanMap, type GeographyFilter, type LocationSummarySelection, type PlaceResearchSelection } from './components/TajikistanMap';
 import { LandingPage } from './components/LandingPage';
+import { ChatLayout } from './components/chat/ChatLayout';
+import { chatService } from './lib/chat-service';
 import {
   SunIcon,
   MoonIcon,
@@ -112,9 +114,6 @@ export function App() {
   // Navigation & Settings state
   const [activeNav, setActiveNav] = useState<'map' | 'chat' | 'news'>('map');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [isGeneralAiOpen, setIsGeneralAiOpen] = useState(false);
-  const [generalAiQuery, setGeneralAiQuery] = useState('');
-  const [generalAiAnswer, setGeneralAiAnswer] = useState('');
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('tj_monitor_theme') as 'dark' | 'light') || 'dark';
   });
@@ -230,12 +229,13 @@ export function App() {
 
   const online = statuses.filter((source) => source.status === 'online').length;
 
-  const streamAi = async (path: string, body: unknown, fallbackError: string) => {
+  const streamAi = async (path: string, body: unknown, fallbackError: string, onComplete?: (finalText: string) => void) => {
     aiRequest.current?.abort();
     const controller = new AbortController();
     aiRequest.current = controller;
     setAsking(true);
     setAnswer('');
+    let collectedText = '';
     try {
       const response = await fetch(path, {
         method: 'POST',
@@ -258,14 +258,17 @@ export function App() {
         const token = decoder.decode(value, { stream: true });
         if (!token) continue;
         received = true;
+        collectedText += token;
         setAnswer((current) => current + token);
       }
       const tail = decoder.decode();
       if (tail) {
         received = true;
+        collectedText += tail;
         setAnswer((current) => current + tail);
       }
       if (!received) setAnswer('Ответ не получен.');
+      else onComplete?.(collectedText);
     } catch (error) {
       if (!controller.signal.aborted) setAnswer(error instanceof Error ? error.message : fallbackError);
     } finally {
@@ -278,50 +281,32 @@ export function App() {
 
   const askAi = async () => {
     if (!selected) return;
-    await streamAi('/api/ai/explain', selected, 'Сервис объяснений сейчас недоступен.');
-  };
-
-  const askGeneralAi = async () => {
-    if (!generalAiQuery.trim()) return;
-    aiRequest.current?.abort();
-    const controller = new AbortController();
-    aiRequest.current = controller;
-    setAsking(true);
-    setGeneralAiAnswer('');
-    try {
-      const response = await fetch('/api/ai/explain', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: 'Вопрос пользователя',
-          description: generalAiQuery,
-          category: 'Общий вопрос',
-        }),
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        const data = (await response.json().catch(() => null)) as { error?: string } | null;
-        throw new Error(data?.error || `AI error: HTTP ${response.status}`);
+    await streamAi(
+      '/api/ai/explain',
+      selected,
+      'Сервис объяснений сейчас недоступен.',
+      (finalText) => {
+        void chatService.recordExternalAiInteraction({
+          title: `Объяснение: ${selected.title.slice(0, 40)}`,
+          userPrompt: `Объясни новость «${selected.title}»: ${selected.description || ''}`,
+          assistantContent: finalText,
+          sources: selected.url
+            ? [
+                {
+                  id: 'N1',
+                  type: 'official_news' as const,
+                  title: selected.title,
+                  url: selected.url,
+                  domain: selected.sourceName,
+                  favicon: `https://www.google.com/s2/favicons?domain=${new URL(selected.url).hostname}&sz=32`,
+                  publishedDate: selected.publishedAt,
+                },
+              ]
+            : [],
+          metadata: { articleId: selected.id, feature: 'news_explainer' },
+        });
       }
-      if (!response.body) throw new Error('Браузер не получил поток ответа.');
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const token = decoder.decode(value, { stream: true });
-        if (token) setGeneralAiAnswer((current) => current + token);
-      }
-    } catch (error) {
-      if (!controller.signal.aborted) {
-        setGeneralAiAnswer(error instanceof Error ? error.message : 'Не удалось получить ответ от ИИ.');
-      }
-    } finally {
-      if (aiRequest.current === controller) {
-        aiRequest.current = null;
-        setAsking(false);
-      }
-    }
+    );
   };
 
   const streamPlaceResearch = async (selection: PlaceResearchSelection) => {
@@ -332,6 +317,9 @@ export function App() {
     setAnswer('');
     setResearchStages([]);
     setResearchSources([]);
+    let collectedText = '';
+    let collectedSources: ResearchSource[] = [];
+
     const acceptEvent = (event: ResearchEvent) => {
       if (event.type === 'status') {
         setResearchStages((current) => {
@@ -345,8 +333,10 @@ export function App() {
           return [...previous, next];
         });
       } else if (event.type === 'sources') {
+        collectedSources = event.items;
         setResearchSources(event.items);
       } else if (event.type === 'token') {
+        collectedText += event.value;
         setAnswer((current) => current + event.value);
       } else if (event.type === 'error') {
         setResearchStages((current) => [
@@ -360,6 +350,15 @@ export function App() {
             state: stage.state === 'error' ? ('error' as const) : ('done' as const),
           })),
         );
+        if (collectedText) {
+          void chatService.recordExternalAiInteraction({
+            title: `Исследование: ${selection.nameRu}`,
+            userPrompt: `Проведи исследование событий по локации ${selection.nameRu} (${selection.nameTg}) за ${selection.periodDays} дней`,
+            assistantContent: collectedText,
+            sources: collectedSources,
+            metadata: { locationId: selection.locationId, periodDays: selection.periodDays, feature: 'place_research' },
+          });
+        }
       }
     };
     try {
@@ -423,8 +422,37 @@ export function App() {
         ),
       },
       'Сервис сумари сейчас недоступен.',
+      (finalText) => {
+        void chatService.recordExternalAiInteraction({
+          title: `Сумари: ${selection.nameRu}`,
+          userPrompt: `Сделай сводку новостей для локации ${selection.nameRu} (${selection.nameTg})`,
+          assistantContent: finalText,
+          sources: selection.articles.map((a, i) => {
+            let domain = a.sourceName || 'Официальный источник';
+            let favicon = '';
+            try {
+              if (a.url) {
+                const u = new URL(a.url);
+                domain = a.sourceName || u.hostname.replace(/^www\./, '');
+                favicon = `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=32`;
+              }
+            } catch {}
+            return {
+              id: `N${i + 1}`,
+              type: 'official_news' as const,
+              title: a.title,
+              url: a.url || '',
+              domain,
+              favicon,
+              publishedDate: a.publishedAt,
+            };
+          }),
+          metadata: { locationId: selection.locationId, feature: 'location_summary' },
+        });
+      }
     );
   };
+
 
   const openPlaceResearch = (selection: PlaceResearchSelection) => {
     setSelected(null);
@@ -456,7 +484,7 @@ export function App() {
   }
 
   return (
-    <div class="app-shell">
+    <div class={`app-shell nav-${activeNav}`}>
       {/* Left Pill Navigation Bar (Apple Style) */}
       <aside class="sidebar-nav" aria-label="Основная навигация">
         <div class="sidebar-brand" title="Tajikistan Monitor">
@@ -482,17 +510,12 @@ export function App() {
           <button
             type="button"
             class={`nav-item-btn${activeNav === 'chat' ? ' is-active' : ''}`}
-            onClick={() => {
-              setActiveNav('chat');
-              setIsGeneralAiOpen(true);
-            }}
+            onClick={() => setActiveNav('chat')}
             title="ИИ Помощник и Анализ"
             aria-label="ИИ чат"
           >
             <span class="nav-icon">
-              <svg viewBox="0 0 24 24">
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-              </svg>
+              <SparklesIcon size={20} />
             </span>
             <span class="nav-label">ИИ чат</span>
           </button>
@@ -533,7 +556,7 @@ export function App() {
       </aside>
 
       {/* Main Container */}
-      <div class="main-container">
+      <div class={`main-container view-${activeNav}`}>
         {/* Topbar */}
         <header class="topbar">
           <div class="topbar-left">
@@ -580,221 +603,229 @@ export function App() {
           </div>
         </header>
 
-        {/* Dashboard Grid */}
-        <main class="dashboard">
-          {/* Left Panel: Sources & Overview */}
-          <aside class="panel-card left-panel" aria-label="Сводка и источники">
-            <div class="panel-header">
-              <h2>Статус источников</h2>
-              <span class="badge">{online} ONLINE</span>
-            </div>
-            <div class="left-panel-content">
-              <div class="source-list">
-                {(statuses.length
-                  ? statuses
-                  : [
-                      {
-                        id: 'loading',
-                        name: 'Подключение к API',
-                        status: 'offline',
-                        count: 0,
-                        checkedAt: '',
-                      } as SourceStatus,
-                    ]
-                ).map((source) => (
-                  <div class="source-item" key={source.id}>
-                    <span class={`source-dot ${source.status}`} />
-                    <div class="source-info">
-                      <strong>{source.name}</strong>
-                      <small>
-                        {source.status === 'online'
-                          ? `${source.count} записей`
-                          : source.status === 'degraded'
-                            ? 'изменилась разметка'
-                            : 'ожидание ответа'}
-                      </small>
+        {/* Dynamic View: Map/Dashboard vs AI Chat */}
+        {activeNav === 'chat' ? (
+          <ChatLayout
+            language={language}
+            theme={theme}
+            onNavigateMap={() => setActiveNav('map')}
+          />
+        ) : (
+          <main class="dashboard">
+            {/* Left Panel: Sources & Overview */}
+            <aside class="panel-card left-panel" aria-label="Сводка и источники">
+              <div class="panel-header">
+                <h2>Статус источников</h2>
+                <span class="badge">{online} ONLINE</span>
+              </div>
+              <div class="left-panel-content">
+                <div class="source-list">
+                  {(statuses.length
+                    ? statuses
+                    : [
+                        {
+                          id: 'loading',
+                          name: 'Подключение к API',
+                          status: 'offline',
+                          count: 0,
+                          checkedAt: '',
+                        } as SourceStatus,
+                      ]
+                  ).map((source) => (
+                    <div class="source-item" key={source.id}>
+                      <span class={`source-dot ${source.status}`} />
+                      <div class="source-info">
+                        <strong>{source.name}</strong>
+                        <small>
+                          {source.status === 'online'
+                            ? `${source.count} записей`
+                            : source.status === 'degraded'
+                              ? 'изменилась разметка'
+                              : 'ожидание ответа'}
+                        </small>
+                      </div>
+                      <span class="source-status-text">
+                        {loading ? (
+                          <AppleSpinner size={13} class="source-spinner" />
+                        ) : source.status === 'online' ? (
+                          'OK'
+                        ) : source.status === 'degraded' ? (
+                          'WARN'
+                        ) : (
+                          '—'
+                        )}
+                      </span>
                     </div>
-                    <span class="source-status-text">
-                      {loading ? (
-                        <AppleSpinner size={13} class="source-spinner" />
-                      ) : source.status === 'online' ? (
-                        'OK'
-                      ) : source.status === 'degraded' ? (
-                        'WARN'
-                      ) : (
-                        '—'
-                      )}
-                    </span>
+                  ))}
+                </div>
+
+                <div>
+                  <div class="section-title">Обзор</div>
+                  <div class="metric-grid">
+                    <button
+                      type="button"
+                      class="metric-card metric-card-btn"
+                      onClick={() => setActiveNav('news')}
+                      title="Открыть ленту новостей"
+                    >
+                      <small>Новостей</small>
+                      <b>{loading && !news.length ? <AppleSpinner size={18} class="metric-spinner" /> : news.length}</b>
+                    </button>
+                    <button
+                      type="button"
+                      class={`metric-card metric-card-btn${alertsOnly ? ' is-active' : ''}`}
+                      onClick={() => {
+                        setGeographyFilter({ regionId: 'all', districtId: 'all' });
+                        setAlertsOnly((prev) => !prev);
+                      }}
+                      title={alertsOnly ? 'Показать все точки на карте' : 'Показать только тревоги на карте'}
+                    >
+                      <small>Тревог</small>
+                      <b class="warn">
+                        {loading && !news.length ? (
+                          <AppleSpinner size={18} class="metric-spinner" />
+                        ) : (
+                          news.filter((n) => n.severity === 'alert').length
+                        )}
+                      </b>
+                    </button>
+                    <div class="metric-card" title="Температура в Душанбе (заглушка)">
+                      <small>Погода</small>
+                      <b>{loading ? <AppleSpinner size={18} class="metric-spinner" /> : '+38°'}</b>
+                    </div>
+                    <div class="metric-card" title="Курс USD/TJS от НБТ (заглушка)">
+                      <small>Курс $</small>
+                      <b>{loading ? <AppleSpinner size={18} class="metric-spinner" /> : '10.93'}</b>
+                    </div>
                   </div>
+                </div>
+
+                <div>
+                  <div class="section-title">Легенда карты</div>
+                  <div class="legend-list">
+                    <div class="legend-item">
+                      <span class="legend-swatch region" />
+                      <span>Область / Вилоят</span>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-swatch district" />
+                      <span>Район / Ноҳия</span>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-swatch city" />
+                      <span>Город / Шаҳр</span>
+                    </div>
+                    <div class="legend-item">
+                      <span class="legend-swatch capital" />
+                      <span>Столица / Пойтахт</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="info-banner">
+                  <strong>Официальный монитор</strong>
+                  <p>Все геоданные проверены по каноническому классификатору Таджикистана.</p>
+                </div>
+              </div>
+            </aside>
+
+            {/* Center: Map Stage */}
+            <section class="map-stage" aria-label="Карта Таджикистана">
+              <TajikistanMap
+                theme={theme}
+                news={filtered}
+                alertsOnly={alertsOnly}
+                resetViewTrigger={resetViewTrigger}
+                onGeographyFilterChange={setGeographyFilter}
+                onLocationSummary={openLocationSummary}
+                onPlaceResearch={openPlaceResearch}
+                onAlertRestriction={handleAlertRestriction}
+                onEmptyMapClick={handleEmptyMapClick}
+              />
+              <div class="map-heading-pill">
+                <span>Оперативная карта</span>
+                <h2>Республика Таджикистан</h2>
+              </div>
+              <div class="map-badge">38.8610° N · 71.2761° E</div>
+            </section>
+
+            {/* Right: News Panel */}
+            <aside class="panel-card news-panel" aria-label="Лента новостей">
+              <div class="panel-header">
+                <h2>Последние новости</h2>
+                <span class="badge">{filtered.length}</span>
+              </div>
+
+              <div class="news-search-bar">
+                <div class="search-input-wrapper">
+                  <SearchIcon size={15} class="search-icon" />
+                  <input
+                    type="search"
+                    value={query}
+                    onInput={(event) => setQuery(event.currentTarget.value)}
+                    placeholder="Поиск по новостям…"
+                    aria-label="Поиск по новостям"
+                  />
+                </div>
+              </div>
+
+              <div class="category-filter-pills" role="tablist">
+                {categories.map((item) => (
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={category === item}
+                    class={`filter-pill-btn${category === item ? ' is-active' : ''}`}
+                    key={item}
+                    onClick={() => setCategory(item)}
+                  >
+                    {item}
+                  </button>
                 ))}
               </div>
 
-              <div>
-                <div class="section-title">Обзор</div>
-                <div class="metric-grid">
-                  <button
-                    type="button"
-                    class="metric-card metric-card-btn"
-                    onClick={() => setActiveNav('news')}
-                    title="Открыть ленту новостей"
-                  >
-                    <small>Новостей</small>
-                    <b>{loading && !news.length ? <AppleSpinner size={18} class="metric-spinner" /> : news.length}</b>
-                  </button>
-                  <button
-                    type="button"
-                    class={`metric-card metric-card-btn${alertsOnly ? ' is-active' : ''}`}
+              <div class="news-feed-list" role="feed">
+                {loading && !news.length ? (
+                  <div class="news-empty-state">
+                    <span class="news-empty-icon"><AppleSpinner size={36} /></span>
+                    <p>Загрузка официальных источников…</p>
+                  </div>
+                ) : filtered.map((item) => (
+                  <article
+                    class={`news-card ${item.severity}`}
+                    key={item.id}
                     onClick={() => {
-                      setGeographyFilter({ regionId: 'all', districtId: 'all' });
-                      setAlertsOnly((prev) => !prev);
+                      aiRequest.current?.abort();
+                      setSelected(item);
+                      setAnswer('');
+                      setAsking(false);
                     }}
-                    title={alertsOnly ? 'Показать все точки на карте' : 'Показать только тревоги на карте'}
                   >
-                    <small>Тревог</small>
-                    <b class="warn">
-                      {loading && !news.length ? (
-                        <AppleSpinner size={18} class="metric-spinner" />
-                      ) : (
-                        news.filter((n) => n.severity === 'alert').length
-                      )}
-                    </b>
-                  </button>
-                  <div class="metric-card" title="Температура в Душанбе (заглушка)">
-                    <small>Погода</small>
-                    <b>{loading ? <AppleSpinner size={18} class="metric-spinner" /> : '+38°'}</b>
+                    <div class="news-meta">
+                      <span class="news-source-tag">{item.sourceName}</span>
+                      <time class="news-time">{formatTime(item.publishedAt)}</time>
+                    </div>
+                    <h3>{item.title}</h3>
+                    {item.description && <p>{item.description}</p>}
+                    <div class="news-card-footer">
+                      <span class="category-badge">{item.category}</span>
+                      <span class="ai-explain-btn">
+                        <SparklesIcon size={12} />
+                        <span>ИИ-обзор</span>
+                      </span>
+                    </div>
+                  </article>
+                ))}
+                {!loading && !filtered.length && (
+                  <div class="news-empty-state">
+                    <span class="news-empty-icon"><NewspaperIcon size={32} /></span>
+                    <p>По выбранным фильтрам новостей нет.</p>
                   </div>
-                  <div class="metric-card" title="Курс USD/TJS от НБТ (заглушка)">
-                    <small>Курс $</small>
-                    <b>{loading ? <AppleSpinner size={18} class="metric-spinner" /> : '10.93'}</b>
-                  </div>
-                </div>
+                )}
               </div>
-
-              <div>
-                <div class="section-title">Легенда карты</div>
-                <div class="legend-list">
-                  <div class="legend-item">
-                    <span class="legend-swatch region" />
-                    <span>Область / Вилоят</span>
-                  </div>
-                  <div class="legend-item">
-                    <span class="legend-swatch district" />
-                    <span>Район / Ноҳия</span>
-                  </div>
-                  <div class="legend-item">
-                    <span class="legend-swatch city" />
-                    <span>Город / Шаҳр</span>
-                  </div>
-                  <div class="legend-item">
-                    <span class="legend-swatch capital" />
-                    <span>Столица / Пойтахт</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="info-banner">
-                <strong>Официальный монитор</strong>
-                <p>Все геоданные проверены по каноническому классификатору Таджикистана.</p>
-              </div>
-            </div>
-          </aside>
-
-          {/* Center: Map Stage */}
-          <section class="map-stage" aria-label="Карта Таджикистана">
-            <TajikistanMap
-              theme={theme}
-              news={filtered}
-              alertsOnly={alertsOnly}
-              resetViewTrigger={resetViewTrigger}
-              onGeographyFilterChange={setGeographyFilter}
-              onLocationSummary={openLocationSummary}
-              onPlaceResearch={openPlaceResearch}
-              onAlertRestriction={handleAlertRestriction}
-              onEmptyMapClick={handleEmptyMapClick}
-            />
-            <div class="map-heading-pill">
-              <span>Оперативная карта</span>
-              <h2>Республика Таджикистан</h2>
-            </div>
-            <div class="map-badge">38.8610° N · 71.2761° E</div>
-          </section>
-
-          {/* Right: News Panel */}
-          <aside class="panel-card news-panel" aria-label="Лента новостей">
-            <div class="panel-header">
-              <h2>Последние новости</h2>
-              <span class="badge">{filtered.length}</span>
-            </div>
-
-            <div class="news-search-bar">
-              <div class="search-input-wrapper">
-                <SearchIcon size={15} class="search-icon" />
-                <input
-                  type="search"
-                  value={query}
-                  onInput={(event) => setQuery(event.currentTarget.value)}
-                  placeholder="Поиск по новостям…"
-                  aria-label="Поиск по новостям"
-                />
-              </div>
-            </div>
-
-            <div class="category-filter-pills" role="tablist">
-              {categories.map((item) => (
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={category === item}
-                  class={`filter-pill-btn${category === item ? ' is-active' : ''}`}
-                  key={item}
-                  onClick={() => setCategory(item)}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-
-            <div class="news-feed-list" role="feed">
-              {loading && !news.length ? (
-                <div class="news-empty-state">
-                  <span class="news-empty-icon"><AppleSpinner size={36} /></span>
-                  <p>Загрузка официальных источников…</p>
-                </div>
-              ) : filtered.map((item) => (
-                <article
-                  class={`news-card ${item.severity}`}
-                  key={item.id}
-                  onClick={() => {
-                    aiRequest.current?.abort();
-                    setSelected(item);
-                    setAnswer('');
-                    setAsking(false);
-                  }}
-                >
-                  <div class="news-meta">
-                    <span class="news-source-tag">{item.sourceName}</span>
-                    <time class="news-time">{formatTime(item.publishedAt)}</time>
-                  </div>
-                  <h3>{item.title}</h3>
-                  {item.description && <p>{item.description}</p>}
-                  <div class="news-card-footer">
-                    <span class="category-badge">{item.category}</span>
-                    <span class="ai-explain-btn">
-                      <SparklesIcon size={12} />
-                      <span>ИИ-обзор</span>
-                    </span>
-                  </div>
-                </article>
-              ))}
-              {!loading && !filtered.length && (
-                <div class="news-empty-state">
-                  <span class="news-empty-icon"><NewspaperIcon size={32} /></span>
-                  <p>По выбранным фильтрам новостей нет.</p>
-                </div>
-              )}
-            </div>
-          </aside>
-        </main>
+            </aside>
+          </main>
+        )}
       </div>
 
       {/* Mobile Bottom Navigation (< 768px) */}
@@ -824,14 +855,9 @@ export function App() {
         <button
           type="button"
           class={`mobile-nav-btn${activeNav === 'chat' ? ' is-active' : ''}`}
-          onClick={() => {
-            setActiveNav('chat');
-            setIsGeneralAiOpen(true);
-          }}
+          onClick={() => setActiveNav('chat')}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-          </svg>
+          <SparklesIcon size={22} />
           <span>ИИ чат</span>
         </button>
 
@@ -975,70 +1001,28 @@ export function App() {
                 </div>
               )}
 
-              {selected?.url && (
-                <a href={selected.url} target="_blank" rel="noreferrer" class="modal-footer-link">
-                  <span>Открыть официальный источник</span>
-                  <ExternalLinkIcon size={14} />
-                </a>
-              )}
-            </div>
-          </section>
-        </div>
-      )}
-
-      {/* General AI Chat Modal */}
-      {isGeneralAiOpen && (
-        <div class="modal-backdrop" onClick={() => setIsGeneralAiOpen(false)}>
-          <section class="ai-modal-card" onClick={(event) => event.stopPropagation()}>
-            <div class="modal-header">
-              <div class="modal-header-info">
-                <span class="modal-category-label">ИИ Ассистент</span>
-                <h2>Задать вопрос по Таджикистану</h2>
+              <div class="modal-footer-action-row" style={{ display: 'flex', gap: '10px', marginTop: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                {selected?.url && (
+                  <a href={selected.url} target="_blank" rel="noreferrer" class="modal-footer-link">
+                    <span>Открыть официальный источник</span>
+                    <ExternalLinkIcon size={14} />
+                  </a>
+                )}
+                {answer && (
+                  <button
+                    type="button"
+                    class="btn-secondary modal-open-chat-btn"
+                    onClick={() => {
+                      closeAi();
+                      setActiveNav('chat');
+                    }}
+                    style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 14px', fontSize: '13px' }}
+                  >
+                    <SparklesIcon size={13} />
+                    <span>Продолжить в ИИ чате</span>
+                  </button>
+                )}
               </div>
-              <button
-                type="button"
-                class="modal-close-btn"
-                onClick={() => setIsGeneralAiOpen(false)}
-                aria-label="Закрыть"
-              >
-                <CloseIcon size={16} />
-              </button>
-            </div>
-
-            <div class="modal-body">
-              <p class="modal-original-text">
-                Задайте вопрос о событиях, погоде, курсах валют или географических локациях Таджикистана.
-              </p>
-
-              <div class="search-input-wrapper" style={{ padding: '10px 14px' }}>
-                <input
-                  type="text"
-                  value={generalAiQuery}
-                  onInput={(e) => setGeneralAiQuery(e.currentTarget.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') void askGeneralAi();
-                  }}
-                  placeholder="Например: Какая ситуация с погодой в Душанбе?"
-                  style={{ fontSize: '13px' }}
-                />
-              </div>
-
-              <button
-                type="button"
-                class="ai-action-btn"
-                onClick={() => void askGeneralAi()}
-                disabled={asking || !generalAiQuery.trim()}
-              >
-                <SparklesIcon size={16} />
-                <span>{asking ? 'ИИ думает…' : 'Отправить вопрос'}</span>
-              </button>
-
-              {generalAiAnswer && (
-                <div class="ai-response-box">
-                  <div class="ai-response-title">Ответ ИИ</div>
-                  <MarkdownContent content={generalAiAnswer} />
-                </div>
-              )}
             </div>
           </section>
         </div>

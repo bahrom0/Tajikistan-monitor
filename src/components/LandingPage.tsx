@@ -2,7 +2,6 @@ import { useState } from 'preact/hooks';
 import {
   SunIcon,
   MoonIcon,
-  ShieldCheckIcon,
   MapPinIcon,
   NewspaperIcon,
   SparklesIcon,

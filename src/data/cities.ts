@@ -8,6 +8,8 @@ export interface CanonicalLocation {
   name_ru: string;
   name_tg: string;
   parent_id: string | null;
+  region_id?: string | null;
+  district_id?: string | null;
   longitude: number | null;
   latitude: number | null;
   official_source_url: string;

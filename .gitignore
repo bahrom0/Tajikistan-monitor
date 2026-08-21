@@ -9,4 +9,4 @@ data/geography/raw/
 *.gpkg
 *.shp
 *.pdf
-
+.chat_store.json

@@ -920,7 +920,7 @@ export function TajikistanMap({
           alertPoints.push([loc.longitude, loc.latitude]);
         } else if (loc.locationId) {
           const canonical = locationById.get(loc.locationId);
-          if (canonical && canonical.type === 'city') {
+          if (canonical && canonical.type === 'city' && canonical.longitude !== null && canonical.latitude !== null) {
             alertPoints.push([canonical.longitude, canonical.latitude]);
           } else {
             const adminFeature = administrativeFeatures.find((f) => f.properties?.location_id === loc.locationId);
