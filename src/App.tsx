@@ -557,51 +557,53 @@ export function App() {
 
       {/* Main Container */}
       <div class={`main-container view-${activeNav}`}>
-        {/* Topbar */}
-        <header class="topbar">
-          <div class="topbar-left">
-            <img src="/logo.png" alt="Tajikistan Monitor" class="topbar-logo" />
-            <div class="brand-title">
-              <h1>TAJIKISTAN MONITOR</h1>
-              <span>Национальная информационная панель</span>
+        {/* Topbar (Hidden in AI Chat for clean, full-screen chat experience) */}
+        {activeNav !== 'chat' && (
+          <header class="topbar">
+            <div class="topbar-left">
+              <img src="/logo.png" alt="Tajikistan Monitor" class="topbar-logo" />
+              <div class="brand-title">
+                <h1>TAJIKISTAN MONITOR</h1>
+                <span>Национальная информационная панель</span>
+              </div>
             </div>
-          </div>
 
-          <div class="topbar-center">
-            <span class="status-pill">
-              <span class="status-pill-dot" />
-              Обновлено
-            </span>
-            <span class="stat-chip">
-              Источники <b>{online}/{statuses.length || 7}</b>
-            </span>
-            <span class="stat-chip">
-              Обновление <b>5 мин</b>
-            </span>
-          </div>
+            <div class="topbar-center">
+              <span class="status-pill">
+                <span class="status-pill-dot" />
+                Обновлено
+              </span>
+              <span class="stat-chip">
+                Источники <b>{online}/{statuses.length || 7}</b>
+              </span>
+              <span class="stat-chip">
+                Обновление <b>5 мин</b>
+              </span>
+            </div>
 
-          <div class="topbar-right">
-            <button
-              type="button"
-              class="btn-icon"
-              onClick={toggleTheme}
-              title={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
-              aria-label="Переключить тему"
-            >
-              {theme === 'dark' ? <SunIcon size={18} /> : <MoonIcon size={18} />}
-            </button>
-            <button
-              type="button"
-              class="btn-primary"
-              onClick={() => void load(true)}
-              disabled={loading}
-              title="Обновить данные"
-            >
-              <RefreshIcon size={15} class={loading ? 'icon-spin' : ''} />
-              <span>{loading ? 'Обновление…' : 'Обновить'}</span>
-            </button>
-          </div>
-        </header>
+            <div class="topbar-right">
+              <button
+                type="button"
+                class="btn-icon"
+                onClick={toggleTheme}
+                title={theme === 'dark' ? 'Включить светлую тему' : 'Включить тёмную тему'}
+                aria-label="Переключить тему"
+              >
+                {theme === 'dark' ? <SunIcon size={18} /> : <MoonIcon size={18} />}
+              </button>
+              <button
+                type="button"
+                class="btn-primary"
+                onClick={() => void load(true)}
+                disabled={loading}
+                title="Обновить данные"
+              >
+                <RefreshIcon size={15} class={loading ? 'icon-spin' : ''} />
+                <span>{loading ? 'Обновление…' : 'Обновить'}</span>
+              </button>
+            </div>
+          </header>
+        )}
 
         {/* Dynamic View: Map/Dashboard vs AI Chat */}
         {activeNav === 'chat' ? (

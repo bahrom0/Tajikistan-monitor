@@ -105,7 +105,10 @@ export function ChatComposer({
               }
             >
               <GlobeIcon size={13} strokeWidth={2} />
-              <span>{isTg ? 'Ҷустуҷӯ дар шабака' : 'Поиск в сети'}</span>
+              <span class="chat-tool-label">
+                <span class="label-desktop">{isTg ? 'Ҷустуҷӯ дар шабака' : 'Поиск в сети'}</span>
+                <span class="label-mobile">{isTg ? 'Шабака' : 'Сеть'}</span>
+              </span>
               <span class={`chat-tool-indicator-dot${modes.webSearch ? ' is-on' : ''}`} />
             </button>
 
@@ -121,7 +124,10 @@ export function ChatComposer({
               }
             >
               <DatabaseIcon size={13} strokeWidth={2} />
-              <span>{isTg ? 'Пойгоҳи маълумот' : 'Поиск по базе'}</span>
+              <span class="chat-tool-label">
+                <span class="label-desktop">{isTg ? 'Пойгоҳи маълумот' : 'Поиск по базе'}</span>
+                <span class="label-mobile">{isTg ? 'База' : 'База'}</span>
+              </span>
               <span class={`chat-tool-indicator-dot${modes.dbSearch ? ' is-on' : ''}`} />
             </button>
 
@@ -137,7 +143,10 @@ export function ChatComposer({
               }
             >
               <ShieldCheckIcon size={13} strokeWidth={2} />
-              <span>{isTg ? 'Сарчашмаи расмӣ' : 'Точные данные'}</span>
+              <span class="chat-tool-label">
+                <span class="label-desktop">{isTg ? 'Сарчашмаи расмӣ' : 'Точные данные'}</span>
+                <span class="label-mobile">{isTg ? 'Расмӣ' : 'Точные'}</span>
+              </span>
               <span class={`chat-tool-indicator-dot${modes.officialStrict ? ' is-on' : ''}`} />
             </button>
           </div>

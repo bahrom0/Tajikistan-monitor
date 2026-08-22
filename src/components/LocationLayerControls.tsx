@@ -5,6 +5,7 @@ import {
   ChevronRightIcon,
   ChevronDownIcon,
   CheckIcon,
+  CloseIcon,
 } from './icons';
 
 export type LocationPoint = CanonicalLocation & {
@@ -248,8 +249,19 @@ export function LocationLayerControls({
         inert={!isExpanded}
       >
       <div class="location-controls-header">
-        <span>НАСЕЛЁННЫЕ ПУНКТЫ</span>
-        <strong>{cityCount}</strong>
+        <div class="location-controls-title-wrap">
+          <span>НАСЕЛЁННЫЕ ПУНКТЫ</span>
+          <strong class="location-controls-count">{cityCount}</strong>
+        </div>
+        <button
+          type="button"
+          class="location-controls-close-btn"
+          onClick={() => setIsExpanded(false)}
+          title="Скрыть панель"
+          aria-label="Закрыть панель населённых пунктов"
+        >
+          <CloseIcon size={14} />
+        </button>
       </div>
 
       <div class="location-layer-switches" role="group" aria-label="Переключатели слоёв карты">
