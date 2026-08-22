@@ -24,3 +24,13 @@ export const cities = locations
     location.type === 'city' && location.longitude !== null && location.latitude !== null
   ));
 
+export const towns = locations
+  .filter((location): location is CanonicalLocation & { longitude: number; latitude: number } => (
+    location.type === 'town' && location.longitude !== null && location.latitude !== null
+  ));
+
+export const settlements = locations
+  .filter((location): location is CanonicalLocation & { longitude: number; latitude: number } => (
+    (location.type === 'city' || location.type === 'town') && location.longitude !== null && location.latitude !== null
+  ));
+

@@ -174,7 +174,15 @@ function AppleSelect({
   );
 }
 
-const locationTypeLabel = () => 'Город / Шаҳр';
+const locationTypeLabel = (type: CanonicalLocation['type']) => (
+  type === 'town'
+    ? 'Посёлок / Шаҳрак'
+    : type === 'city'
+      ? 'Город / Шаҳр'
+      : type === 'district'
+        ? 'Район / Ноҳия'
+        : 'Область / Вилоят'
+);
 
 const optionLabel = (location: CanonicalLocation) => `${location.name_ru} · ${location.name_tg}`;
 
@@ -283,7 +291,7 @@ export function LocationLayerControls({
           type="search"
           value={query}
           onInput={(event) => onQueryChange(event.currentTarget.value)}
-          placeholder="Душанбе / Худжанд"
+          placeholder="Душанбе / Худжанд / Бохтар"
           aria-label="Поиск по русскому и таджикскому названию"
           aria-controls="location-search-results"
           aria-expanded={hasQuery}
@@ -311,7 +319,7 @@ export function LocationLayerControls({
                 <strong>{location.name_ru}</strong>
                 <span>{location.name_tg}</span>
               </span>
-              <small>{locationTypeLabel()} · {getParentLabel(location)}</small>
+              <small>{locationTypeLabel(location.type)} · {getParentLabel(location)}</small>
             </button>
           )) : (
             <div class="location-search-empty" role="status" aria-live="polite">
@@ -341,7 +349,7 @@ export function LocationLayerControls({
         {/* <p class="location-filter-note">Выбранная территория подсвечивается по границам OpenStreetMap.</p> */}
       </div>
 
-      <p class="location-proof-note">На карте показаны области, официальные районы и города. Малые посёлки скрыты.</p>
+      <p class="location-proof-note">На карте показаны области, официальные районы и города Таджикистана.</p>
       </aside>
     </div>
   );
