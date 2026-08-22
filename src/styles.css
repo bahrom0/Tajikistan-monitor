@@ -4309,29 +4309,40 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 .chat-task-list {
   list-style: none;
   padding-left: 0;
-  margin: 8px 0;
+  margin: 10px 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 8px;
 }
 
 .chat-task-item {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 14px;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14.5px;
+  line-height: 1.55;
   color: var(--text-primary);
 }
 
-.chat-task-item.is-checked .chat-task-text {
-  text-decoration: line-through;
-  color: var(--text-tertiary);
-}
-
 .chat-task-checkbox {
-  margin: 0;
+  margin: 3px 0 0;
+  width: 16px;
+  height: 16px;
   accent-color: var(--accent);
   cursor: default;
+  flex-shrink: 0;
+  border-radius: 4px;
+}
+
+.chat-task-text {
+  flex: 1;
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.chat-task-item.is-checked .chat-task-text {
+  text-decoration: none;
+  color: var(--text-primary);
 }
 
 .chat-heading-h1 {

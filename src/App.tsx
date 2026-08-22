@@ -428,7 +428,7 @@ export function App() {
           userPrompt: `Сделай сводку новостей для локации ${selection.nameRu} (${selection.nameTg})`,
           assistantContent: finalText,
           sources: selection.articles.map((a, i) => {
-            let domain = a.sourceName || 'Официальный источник';
+            let domain = a.sourceName || 'Точные данные';
             let favicon = '';
             try {
               if (a.url) {
@@ -1004,7 +1004,7 @@ export function App() {
               <div class="modal-footer-action-row" style={{ display: 'flex', gap: '10px', marginTop: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                 {selected?.url && (
                   <a href={selected.url} target="_blank" rel="noreferrer" class="modal-footer-link">
-                    <span>Открыть официальный источник</span>
+                    <span>Открыть Точные данные</span>
                     <ExternalLinkIcon size={14} />
                   </a>
                 )}

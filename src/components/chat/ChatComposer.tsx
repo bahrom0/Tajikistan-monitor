@@ -133,11 +133,11 @@ export function ChatComposer({
               title={
                 isTg
                   ? 'Сарчашмаи расмӣ: санҷиши қатъии фактҳо ва ҷудо кардани овозаҳо'
-                  : 'Официальный источник: глубокая верификация фактов, отсев фейков и слухов'
+                  : 'Точные данные: глубокая верификация фактов, отсев фейков и слухов'
               }
             >
               <ShieldCheckIcon size={13} strokeWidth={2} />
-              <span>{isTg ? 'Сарчашмаи расмӣ' : 'Официальный источник'}</span>
+              <span>{isTg ? 'Сарчашмаи расмӣ' : 'Точные данные'}</span>
               <span class={`chat-tool-indicator-dot${modes.officialStrict ? ' is-on' : ''}`} />
             </button>
           </div>

@@ -141,3 +141,19 @@ test('markdown normalizer leaves fenced code and table syntax untouched', () => 
     },
   ]);
 });
+
+test('markdown parser parses task list items cleanly without stripping text', () => {
+  const input = `### 3. Тактика на экзаменах: как не дать себя «завалить»
+- [x] **Сдавайте работы с копией.** Приносите черновик/копию своей работы
+- [x] **Приходите на экзамен с одногруппником.** Если преподаватель хочет «завалить»
+- [ ] **Не пропускайте пары вообще.** Посещаемость — ваш щит`;
+
+  const blocks = parseMarkdownBlocks(input);
+  assert.equal(blocks[0].type, 'heading');
+  assert.equal(blocks[0].text, '3. Тактика на экзаменах: как не дать себя «завалить»');
+  assert.equal(blocks[1].type, 'task-list');
+  assert.equal(blocks[1].items.length, 3);
+  assert.equal(blocks[1].items[0].checked, true);
+  assert.match(blocks[1].items[0].text, /Сдавайте работы с копией/);
+  assert.equal(blocks[1].items[2].checked, false);
+});

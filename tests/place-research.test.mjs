@@ -20,7 +20,7 @@ test('place research includes news from descendants but not unrelated locations'
   assert.equal(locationContains(locations, 'region-sughd', 'city-isfara'), true);
   assert.equal(locationContains(locations, 'city-isfara', 'region-sughd'), false);
   const news = relatedLocationNews([
-    { title: 'Новость Исфары', description: 'Факт', sourceName: 'Официальный источник', url: 'https://example.test/1', publishedAt: '2026-08-17T00:00:00Z', category: 'Новости', geolocationThreshold: 0.78, locations: [{ locationId: 'city-isfara', confidence: 0.9 }] },
+    { title: 'Новость Исфары', description: 'Факт', sourceName: 'Точные данные', url: 'https://example.test/1', publishedAt: '2026-08-17T00:00:00Z', category: 'Новости', geolocationThreshold: 0.78, locations: [{ locationId: 'city-isfara', confidence: 0.9 }] },
     { title: 'Сомнительное совпадение', locations: [{ locationId: 'city-isfara', confidence: 0.4 }] },
   ], locations.get('region-sughd'), locations);
   assert.deepEqual(news.map(({ title }) => title), ['Новость Исфары']);

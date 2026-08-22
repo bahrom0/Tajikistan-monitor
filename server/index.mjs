@@ -555,7 +555,7 @@ async function handleStreamChat(req, res) {
       const step1 = {
         id: `step_${Date.now()}_1`,
         stage: 'search',
-        label: modes.webSearch ? 'Поиск в сети Exa...' : 'Поиск в официальной базе данных...',
+        label: modes.webSearch ? 'Выхожу в сеть...' : 'Поиск в официальной базе данных...',
         query: userPrompt,
         timestamp: Date.now(),
       };
@@ -837,7 +837,7 @@ async function handleStreamChat(req, res) {
               tc.name === 'search_news'
                 ? `Поиск в базе: "${parsedArgs.query || ''}"`
                 : tc.name === 'search_web_exa'
-                  ? `Поиск в сети Exa: "${parsedArgs.query || ''}"`
+                  ? `Выхожу в сеть: "${parsedArgs.query || ''}"`
                   : tc.name === 'get_recent_news'
                     ? 'Запрос последних новостей'
                     : tc.name === 'get_location_info'

@@ -1,6 +1,6 @@
 const BULLET_PATTERN = /^[-*+]\s+(.+)$/;
 const ORDERED_PATTERN = /^(\d+)[.)]\s+(.+)$/;
-const TASK_PATTERN = /^[-*+]\s+\[([ xX])\]\s+(.+)$/;
+const TASK_PATTERN = /^(?:[-*+]|\d+[.)])\s+\[([ xX])\]\s+(.+)$/;
 const HR_PATTERN = /^(?:---|\*\*\*|___)\s*$/;
 const FENCE_PATTERN = /^```/;
 const TABLE_DIVIDER_CELL_PATTERN = /^:?-{3,}:?$/;

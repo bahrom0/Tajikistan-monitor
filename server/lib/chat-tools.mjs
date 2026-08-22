@@ -92,7 +92,7 @@ export const CHAT_TOOLS_DEFINITIONS = [
   ];
 
 export function articleToSource(item, index) {
-  let domain = 'Официальный источник';
+  let domain = 'Точные данные';
   let favicon = '';
   try {
     if (item.url && item.url.startsWith('http')) {
