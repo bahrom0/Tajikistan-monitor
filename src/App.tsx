@@ -399,60 +399,117 @@ export function App() {
     }
   };
 
+  const streamLocationSummary = async (selection: LocationSummarySelection) => {
+    aiRequest.current?.abort();
+    const controller = new AbortController();
+    aiRequest.current = controller;
+    setAsking(true);
+    setAnswer('');
+    setResearchStages([]);
+    setResearchSources([]);
+    let collectedText = '';
+    let collectedSources: ResearchSource[] = [];
+
+    const acceptEvent = (event: ResearchEvent) => {
+      if (event.type === 'status') {
+        setResearchStages((current) => {
+          const previous = current.map((stage) => ({
+            ...stage,
+            state: stage.state === 'error' ? ('error' as const) : ('done' as const),
+          }));
+          const existing = previous.findIndex((stage) => stage.id === event.id);
+          const next = { id: event.id, label: event.label, state: 'active' as const };
+          if (existing >= 0) return previous.map((stage, index) => (index === existing ? next : stage));
+          return [...previous, next];
+        });
+      } else if (event.type === 'sources') {
+        collectedSources = event.items;
+        setResearchSources(event.items);
+      } else if (event.type === 'token') {
+        collectedText += event.value;
+        setAnswer((current) => current + event.value);
+      } else if (event.type === 'error') {
+        setResearchStages((current) => [
+          ...current.map((stage) => ({ ...stage, state: 'done' as const })),
+          { id: 'error', label: event.message, state: 'error' },
+        ]);
+      } else if (event.type === 'done') {
+        setResearchStages((current) =>
+          current.map((stage) => ({
+            ...stage,
+            state: stage.state === 'error' ? ('error' as const) : ('done' as const),
+          })),
+        );
+        if (collectedText) {
+          void chatService.recordExternalAiInteraction({
+            title: `Сумари: ${selection.nameRu}`,
+            userPrompt: `Сделай сумари новостей по локации ${selection.nameRu}${selection.nameTg ? ` (${selection.nameTg})` : ''}`,
+            assistantContent: collectedText,
+            sources: collectedSources,
+            metadata: { locationId: selection.locationId, feature: 'location_summary' },
+          });
+        }
+      }
+    };
+    try {
+      const response = await fetch('/api/ai/location-summary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationId: selection.locationId,
+          locationNameRu: selection.nameRu,
+          locationNameTg: selection.nameTg,
+          articles: selection.articles.map(
+            ({ title, description, sourceName, publishedAt, category, severity, url }) => ({
+              title,
+              description,
+              sourceName,
+              publishedAt,
+              category,
+              severity,
+              url,
+            }),
+          ),
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok) {
+        const data = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(data?.error || `Location summary: HTTP ${response.status}`);
+      }
+      if (!response.body) throw new Error('Браузер не получил поток сумари.');
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        buffer += decoder.decode(value, { stream: !done });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) if (line.trim()) acceptEvent(JSON.parse(line) as ResearchEvent);
+        if (done) break;
+      }
+      if (buffer.trim()) acceptEvent(JSON.parse(buffer) as ResearchEvent);
+    } catch (error) {
+      if (!controller.signal.aborted)
+        acceptEvent({
+          type: 'error',
+          message: error instanceof Error ? error.message : 'Сервис сумари недоступен.',
+        });
+    } finally {
+      if (aiRequest.current === controller) {
+        aiRequest.current = null;
+        setAsking(false);
+      }
+    }
+  };
+
   const openLocationSummary = (selection: LocationSummarySelection) => {
     setSelected(null);
     setPlaceResearch(null);
     setLocationSummary(selection);
-    void streamAi(
-      '/api/ai/location-summary',
-      {
-        locationId: selection.locationId,
-        locationNameRu: selection.nameRu,
-        locationNameTg: selection.nameTg,
-        articles: selection.articles.map(
-          ({ title, description, sourceName, publishedAt, category, severity, url }) => ({
-            title,
-            description,
-            sourceName,
-            publishedAt,
-            category,
-            severity,
-            url,
-          }),
-        ),
-      },
-      'Сервис сумари сейчас недоступен.',
-      (finalText) => {
-        void chatService.recordExternalAiInteraction({
-          title: `Сумари: ${selection.nameRu}`,
-          userPrompt: `Сделай сводку новостей для локации ${selection.nameRu} (${selection.nameTg})`,
-          assistantContent: finalText,
-          sources: selection.articles.map((a, i) => {
-            let domain = a.sourceName || 'Точные данные';
-            let favicon = '';
-            try {
-              if (a.url) {
-                const u = new URL(a.url);
-                domain = a.sourceName || u.hostname.replace(/^www\./, '');
-                favicon = `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=32`;
-              }
-            } catch {}
-            return {
-              id: `N${i + 1}`,
-              type: 'official_news' as const,
-              title: a.title,
-              url: a.url || '',
-              domain,
-              favicon,
-              publishedDate: a.publishedAt,
-            };
-          }),
-          metadata: { locationId: selection.locationId, feature: 'location_summary' },
-        });
-      }
-    );
+    void streamLocationSummary(selection);
   };
-
 
   const openPlaceResearch = (selection: PlaceResearchSelection) => {
     setSelected(null);
@@ -905,13 +962,13 @@ export function App() {
             <div class="modal-body">
               <p class="modal-original-text">
                 {placeResearch
-                  ? `${placeResearch.nameTg} · ${placeResearch.parentLabel} · период ${placeResearch.periodDays} дней`
+                  ? `${placeResearch.nameTg ? `${placeResearch.nameTg} · ` : ''}${placeResearch.parentLabel} · период ${placeResearch.periodDays} дней`
                   : locationSummary
                     ? `${locationSummary.articles.length} публикаций${locationSummary.nameTg ? ` · ${locationSummary.nameTg}` : ''}`
                     : selected?.description || 'Описание отсутствует в RSS.'}
               </p>
 
-              {!locationSummary && !placeResearch && !answer && (
+              {!placeResearch && !locationSummary && !answer && (
                 <button
                   type="button"
                   class="ai-action-btn"
@@ -923,16 +980,10 @@ export function App() {
                 </button>
               )}
 
-              {locationSummary && asking && !answer && (
-                <div class="stat-chip" role="status">
-                  Собираю сумари из новостей…
-                </div>
-              )}
-
-              {placeResearch && (
-                <div class="research-trace" aria-live="polite" aria-label="Ход веб-исследования">
+              {(placeResearch || locationSummary) && (
+                <div class="research-trace" aria-live="polite" aria-label="Ход анализа данных">
                   <div class="research-trace-title">
-                    <span>Поиск данных</span>
+                    <span>{locationSummary ? 'Анализ публикаций' : 'Поиск данных'}</span>
                     <span class="research-trace-status">
                       {asking ? (
                         <AppleSpinner size={15} class="research-status-spinner" />
@@ -961,29 +1012,27 @@ export function App() {
                       </li>
                     ))}
                   </ol>
-                  {!!researchSources.some((source) => source.type === 'requested_web') && (
+                  {!!researchSources.length && (
                     <div style={{ marginTop: '12px' }}>
                       <div class="section-title">
-                        Посещённые сайты ·{' '}
-                        {researchSources.filter((source) => source.type === 'requested_web').length}
+                        {locationSummary ? 'Официальные источники' : 'Посещённые сайты'} ·{' '}
+                        {researchSources.length}
                       </div>
                       <div class="visited-sites-grid">
-                        {researchSources
-                          .filter((source) => source.type === 'requested_web')
-                          .map((source, index) => (
-                            <a
-                              key={source.id}
-                              href={source.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              class="stat-chip visited-site-chip"
-                              style={{ animationDelay: `${index * 55}ms` }}
-                              title={source.title}
-                            >
-                              <span>{source.domain}</span>
-                              <ExternalLinkIcon size={12} />
-                            </a>
-                          ))}
+                        {researchSources.map((source, index) => (
+                          <a
+                            key={source.id}
+                            href={source.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            class="stat-chip visited-site-chip"
+                            style={{ animationDelay: `${index * 55}ms` }}
+                            title={source.title}
+                          >
+                            <span>{source.domain}</span>
+                            <ExternalLinkIcon size={12} />
+                          </a>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -999,14 +1048,14 @@ export function App() {
                         ? 'Сумари новостей'
                         : 'Понятное объяснение'}
                   </div>
-                  <MarkdownContent content={answer} sources={placeResearch ? researchSources : []} isStreaming={asking} />
+                  <MarkdownContent content={answer} sources={researchSources} isStreaming={asking} />
                 </div>
               )}
 
               <div class="modal-footer-action-row" style={{ display: 'flex', gap: '10px', marginTop: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
                 {selected?.url && (
                   <a href={selected.url} target="_blank" rel="noreferrer" class="modal-footer-link">
-                    <span>Открыть Точные данные</span>
+                    <span>Открыть Факты</span>
                     <ExternalLinkIcon size={14} />
                   </a>
                 )}

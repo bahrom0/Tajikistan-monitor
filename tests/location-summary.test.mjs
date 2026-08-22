@@ -9,7 +9,7 @@ import {
 const article = (index, overrides = {}) => ({
   title: `Новость ${index}`,
   description: 'Подтверждённое описание события.',
-  sourceName: 'Точные данные',
+  sourceName: 'Факты',
   publishedAt: '2026-08-16T10:00:00.000Z',
   category: 'Общество',
   severity: 'normal',

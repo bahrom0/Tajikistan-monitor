@@ -139,12 +139,12 @@ export function ChatComposer({
               title={
                 isTg
                   ? 'Сарчашмаи расмӣ: санҷиши қатъии фактҳо ва ҷудо кардани овозаҳо'
-                  : 'Точные данные: глубокая верификация фактов, отсев фейков и слухов'
+                  : 'Факты: глубокая верификация фактов, отсев фейков и слухов'
               }
             >
               <ShieldCheckIcon size={13} strokeWidth={2} />
               <span class="chat-tool-label">
-                <span class="label-desktop">{isTg ? 'Сарчашмаи расмӣ' : 'Точные данные'}</span>
+                <span class="label-desktop">{isTg ? 'Сарчашмаи расмӣ' : 'Факты'}</span>
                 <span class="label-mobile">{isTg ? 'Расмӣ' : 'Точные'}</span>
               </span>
               <span class={`chat-tool-indicator-dot${modes.officialStrict ? ' is-on' : ''}`} />

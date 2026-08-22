@@ -358,7 +358,11 @@ const getParentLabel = (location: CanonicalLocation) => {
   return parent ? `${parent.name_ru} / ${parent.name_tg}` : 'Таджикистан / Тоҷикистон';
 };
 
-const createPopupContent = (location: CanonicalLocation, onResearch?: (selection: PlaceResearchSelection) => void) => {
+const createPopupContent = (
+  location: CanonicalLocation,
+  onResearch?: (selection: PlaceResearchSelection) => void,
+  onClose?: () => void,
+) => {
   const content = document.createElement('div');
   content.className = 'location-popup';
 
@@ -497,6 +501,7 @@ const createPopupContent = (location: CanonicalLocation, onResearch?: (selection
   })[location.type];
   researchButton.addEventListener('click', (event) => {
     event.stopPropagation();
+    onClose?.();
     onResearch?.({
       locationId: location.id,
       nameRu: location.name_ru,
@@ -641,22 +646,15 @@ export function TajikistanMap({
     if (activePopupRef.current === popup) activePopupRef.current = null;
   };
 
-  const getPopupViewport = (map: maplibregl.Map, lngLat: maplibregl.LngLatLike) => {
+  const getPopupViewport = (map: maplibregl.Map, _lngLat: maplibregl.LngLatLike) => {
     const container = map.getContainer();
-    const point = map.project(lngLat);
     const edgePadding = 12;
-    const availableSide = Math.max(
-      point.y - edgePadding,
-      container.clientHeight - point.y - edgePadding,
-    );
 
     return {
-      maxWidth: Math.max(160, Math.min(320, container.clientWidth - edgePadding * 2)),
-      // Leave room for popup padding and the close button. The larger of the
-      // two sides is used so the popup can stay fully inside the map.
+      maxWidth: Math.max(200, Math.min(320, container.clientWidth - edgePadding * 2)),
       maxHeight: Math.max(
-        96,
-        Math.min(430, container.clientHeight - 54, availableSide - 34),
+        240,
+        Math.min(480, container.clientHeight - 50),
       ),
     };
   };
@@ -1150,7 +1148,11 @@ export function TajikistanMap({
         const popupViewport = getPopupViewport(map, popupPosition);
         const popupContent = createPopupContent(
           location,
-          (selection) => onPlaceResearchRef.current?.(selection),
+          (selection) => {
+            closeActivePopup();
+            onPlaceResearchRef.current?.(selection);
+          },
+          closeActivePopup,
         );
         popupContent.style.maxHeight = `${popupViewport.maxHeight}px`;
         const popup = new maplibregl.Popup({
@@ -1277,6 +1279,7 @@ export function TajikistanMap({
         summaryButton.setAttribute('aria-label', `Создать сумари ${articleCount} новостей для ${location?.name_ru || 'этого места'}`);
         summaryButton.addEventListener('click', (clickEvent) => {
           clickEvent.stopPropagation();
+          closeActivePopup();
           const fullArticles = newsItemsRef.current.filter((article) => (article.locations ?? []).some((articleLocation) => (
             articleLocation.locationId === locationId
             && articleLocation.confidence >= (article.geolocationThreshold ?? 0.78)
@@ -1302,6 +1305,14 @@ export function TajikistanMap({
       });
       map.on('mouseenter', 'news-location-points', () => { map.getCanvas().style.cursor = 'pointer'; });
       map.on('mouseleave', 'news-location-points', () => { map.getCanvas().style.cursor = ''; });
+
+      map.on('dragstart', closeActivePopup);
+      map.on('movestart', (event) => {
+        if (event.originalEvent) closeActivePopup();
+      });
+      map.on('zoomstart', (event) => {
+        if (event.originalEvent) closeActivePopup();
+      });
 
       administrativeFeatures.forEach((feature) => {
         const type = feature.properties?.location_type;
@@ -1400,7 +1411,14 @@ export function TajikistanMap({
           maxWidth: 'min(280px, calc(100vw - 24px))',
           className: 'place-map-popup',
         })
-          .setDOMContent(createPopupContent(location, (selection) => onPlaceResearchRef.current?.(selection)));
+          .setDOMContent(createPopupContent(
+            location,
+            (selection) => {
+              closeActivePopup();
+              onPlaceResearchRef.current?.(selection);
+            },
+            closeActivePopup,
+          ));
         popup.on('open', () => activatePopup(popup));
         popup.on('close', () => clearPopupReference(popup));
         const marker = new maplibregl.Marker({ element, anchor: 'center' })
@@ -1478,12 +1496,12 @@ export function TajikistanMap({
         selectedRegionId={selectedRegionId}
         selectedDistrictId={selectedDistrictId}
         getParentLabel={getParentLabel}
-        onToggleCities={setShowCities}
-        onQueryChange={setQuery}
+        onToggleCities={(show) => { closeActivePopup(); setShowCities(show); }}
+        onQueryChange={(q) => { closeActivePopup(); setQuery(q); }}
         onRegionChange={handleRegionChange}
         onDistrictChange={handleDistrictChange}
-        onSelectLocation={focusLocation}
-        onClearSearch={() => setQuery('')}
+        onSelectLocation={(loc) => { closeActivePopup(); focusLocation(loc); }}
+        onClearSearch={() => { closeActivePopup(); setQuery(''); }}
       />
     </div>
   );

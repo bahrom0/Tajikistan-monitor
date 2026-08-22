@@ -186,7 +186,79 @@ async function streamAiResponse(res, messages, fallback) {
 
 async function summarizeLocation(req, res) {
   const request = normalizeLocationSummaryRequest(await readBody(req));
-  return streamAiResponse(res, locationSummaryMessages(request), locationSummaryFallback(request));
+
+  res.writeHead(200, {
+    'content-type': 'application/x-ndjson; charset=utf-8',
+    'cache-control': 'no-cache, no-store',
+    'x-accel-buffering': 'no',
+    'x-content-type-options': 'nosniff',
+  });
+  res.flushHeaders();
+  res.socket?.setNoDelay(true);
+
+  writeNdjson(res, { type: 'status', id: 'analyze', label: 'Анализирую публикации локации…' });
+
+  const sources = request.articles.map((article, index) => {
+    let domain = article.sourceName || 'Факты';
+    let favicon = '';
+    try {
+      if (article.url) {
+        const u = new URL(article.url);
+        domain = article.sourceName || u.hostname.replace(/^www\./, '');
+        favicon = `https://www.google.com/s2/favicons?domain=${u.hostname}&sz=32`;
+      }
+    } catch {}
+    return {
+      id: `N${index + 1}`,
+      type: 'official_news',
+      title: article.title,
+      url: article.url,
+      domain,
+      favicon,
+      publishedDate: article.publishedAt,
+    };
+  });
+
+  writeNdjson(res, { type: 'sources', items: sources });
+  writeNdjson(res, { type: 'status', id: 'sources', label: `Проверяю ${request.articles.length} источников и фактов…` });
+  writeNdjson(res, { type: 'status', id: 'summary', label: 'Формирую главное и выводы…' });
+
+  const messages = locationSummaryMessages(request);
+  const fallback = locationSummaryFallback(request);
+
+  if (!process.env.OPENAI_API_KEY) {
+    writeNdjson(res, { type: 'token', value: fallback });
+    writeNdjson(res, { type: 'done' });
+    return res.end();
+  }
+
+  const abortController = new AbortController();
+  const timeout = setTimeout(() => abortController.abort(new Error('AI provider timeout')), 120_000);
+  res.once('close', () => abortController.abort());
+  try {
+    const response = await fetch(resolveChatCompletionsUrl(process.env.OPENAI_BASE_URL), {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, Accept: 'text/event-stream', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4.1-mini', temperature: 0.2, stream: true, messages }),
+      signal: abortController.signal,
+    });
+    if (!response.ok) throw new Error(`AI provider: HTTP ${response.status}`);
+    if (!response.body) throw new Error('AI provider не вернул поток данных');
+    for await (const payload of parseOpenAiSse(response.body)) {
+      const token = contentDelta(payload);
+      if (token && !writeNdjson(res, { type: 'token', value: token })) await once(res, 'drain');
+    }
+    writeNdjson(res, { type: 'done' });
+    res.end();
+  } catch (error) {
+    if (!res.destroyed) {
+      writeNdjson(res, { type: 'error', message: error instanceof Error ? error.message : 'AI stream failed' });
+      writeNdjson(res, { type: 'done' });
+      res.end();
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function allowPlaceResearch(req, locationId) {
