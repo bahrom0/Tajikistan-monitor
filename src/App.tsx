@@ -4,6 +4,7 @@ import { TajikistanMap, type GeographyFilter, type LocationSummarySelection, typ
 import { LandingPage } from './components/LandingPage';
 import { AppPreloader } from './components/AppPreloader';
 import { ChatLayout } from './components/chat/ChatLayout';
+import { NewsPage } from './components/NewsPage';
 import { chatService } from './lib/chat-service';
 import {
   SunIcon,
@@ -113,7 +114,10 @@ export function App() {
   };
 
   // Navigation & Settings state
-  const [activeNav, setActiveNav] = useState<'map' | 'chat' | 'news'>('map');
+  const [activeNav, setActiveNav] = useState<'map' | 'chat' | 'news'>(() => {
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/news')) return 'news';
+    return 'map';
+  });
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     return (localStorage.getItem('tj_monitor_theme') as 'dark' | 'light') || 'dark';
@@ -126,6 +130,13 @@ export function App() {
   const [currentPath, setCurrentPath] = useState<string>(() => {
     if (typeof window === 'undefined') return '/';
     const accepted = localStorage.getItem('tj_monitor_privacy_accepted') === 'true';
+    if (window.location.pathname.startsWith('/news')) {
+      if (!accepted) {
+        window.history.replaceState(null, '', '/');
+        return '/';
+      }
+      return window.location.pathname;
+    }
     if (window.location.pathname === '/monitor' && !accepted) {
       window.history.replaceState(null, '', '/');
       return '/';
@@ -138,13 +149,14 @@ export function App() {
   };
 
   const navigateTo = (path: string) => {
-    if (path === '/monitor' && !isPrivacyAccepted()) {
+    if ((path === '/monitor' || path.startsWith('/news')) && !isPrivacyAccepted()) {
       window.history.pushState(null, '', '/');
       setCurrentPath('/');
       return;
     }
     window.history.pushState(null, '', path);
     setCurrentPath(path);
+    if (path.startsWith('/news')) setActiveNav('news');
   };
 
   const handleAcceptLanding = () => {
@@ -157,11 +169,13 @@ export function App() {
   useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname;
-      if (path === '/monitor' && !isPrivacyAccepted()) {
+      if ((path === '/monitor' || path.startsWith('/news')) && !isPrivacyAccepted()) {
         window.history.replaceState(null, '', '/');
         setCurrentPath('/');
       } else {
-        setCurrentPath(path === '/monitor' ? '/monitor' : '/');
+        setCurrentPath(path === '/monitor' || path.startsWith('/news') ? path : '/');
+        if (path.startsWith('/news')) setActiveNav('news');
+        else if (path === '/monitor') setActiveNav('map');
       }
     };
 
@@ -584,7 +598,7 @@ export function App() {
     setAsking(false);
   };
 
-  if (currentPath !== '/monitor') {
+  if (currentPath !== '/monitor' && !currentPath.startsWith('/news')) {
     return (
       <>
         <LandingPage
@@ -623,7 +637,10 @@ export function App() {
           <button
             type="button"
             class={`nav-item-btn${activeNav === 'map' ? ' is-active' : ''}`}
-            onClick={() => setActiveNav('map')}
+            onClick={() => {
+              setActiveNav('map');
+              navigateTo('/monitor');
+            }}
             title="Карта Таджикистана"
             aria-label="Карта"
           >
@@ -638,7 +655,10 @@ export function App() {
           <button
             type="button"
             class={`nav-item-btn${activeNav === 'chat' ? ' is-active' : ''}`}
-            onClick={() => setActiveNav('chat')}
+            onClick={() => {
+              setActiveNav('chat');
+              navigateTo('/monitor');
+            }}
             title="ИИ Помощник и Анализ"
             aria-label="ИИ чат"
           >
@@ -651,7 +671,7 @@ export function App() {
           <button
             type="button"
             class={`nav-item-btn${activeNav === 'news' ? ' is-active' : ''}`}
-            onClick={() => setActiveNav('news')}
+            onClick={() => navigateTo('/news')}
             title="Лента новостей"
             aria-label="Новости"
           >
@@ -686,27 +706,26 @@ export function App() {
       {/* Main Container */}
       <div class={`main-container view-${activeNav}`}>
         {/* Topbar (Hidden in AI Chat for clean, full-screen chat experience) */}
-        {activeNav !== 'chat' && (
+        {activeNav === 'map' && (
           <header class="topbar">
             <div class="topbar-left">
-              <img src="/logo.svg" alt="Tajikistan Monitor" class="topbar-logo" />
-              <div class="brand-title">
-                <h1>TAJIKISTAN MONITOR</h1>
-                <span>Национальная информационная панель</span>
+              <div class="topbar-brand">
+                <span>Tajikistan</span>
+                <span>Monitor</span>
               </div>
             </div>
 
             <div class="topbar-center">
-              <span class="status-pill">
-                <span class="status-pill-dot" />
-                Обновлено
-              </span>
-              <span class="stat-chip">
-                Источники <b>{online}/{statuses.length || 7}</b>
-              </span>
-              <span class="stat-chip">
-                Обновление <b>5 мин</b>
-              </span>
+              <label class="topbar-global-search">
+                <SearchIcon size={16} />
+                <input
+                  type="search"
+                  value={query}
+                  onInput={(event) => setQuery((event.currentTarget as HTMLInputElement).value)}
+                  placeholder="Поиск по новостям, местам, источникам..."
+                  aria-label="Поиск по новостям, местам и источникам"
+                />
+              </label>
             </div>
 
             <div class="topbar-right">
@@ -719,26 +738,28 @@ export function App() {
               >
                 {theme === 'dark' ? <SunIcon size={18} /> : <MoonIcon size={18} />}
               </button>
-              <button
-                type="button"
-                class="btn-primary"
-                onClick={() => void load(true)}
-                disabled={loading}
-                title="Обновить данные"
-              >
-                <RefreshIcon size={15} class={loading ? 'icon-spin' : ''} />
-                <span>{loading ? 'Обновление…' : 'Обновить'}</span>
-              </button>
             </div>
           </header>
         )}
 
         {/* Dynamic View: Map/Dashboard vs AI Chat */}
-        {activeNav === 'chat' ? (
+        {activeNav === 'news' ? (
+          <NewsPage
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            onNavigateMap={() => {
+              setActiveNav('map');
+              navigateTo('/monitor');
+            }}
+          />
+        ) : activeNav === 'chat' ? (
           <ChatLayout
             language={language}
             theme={theme}
-            onNavigateMap={() => setActiveNav('map')}
+            onNavigateMap={() => {
+              setActiveNav('map');
+              navigateTo('/monitor');
+            }}
           />
         ) : (
           <main class="dashboard">
@@ -746,7 +767,7 @@ export function App() {
             <aside class="panel-card left-panel" aria-label="Сводка и источники">
               <div class="panel-header">
                 <h2>Статус источников</h2>
-                <span class="badge">{online} ONLINE</span>
+                <span class="badge">{online} Онлайн</span>
               </div>
               <div class="left-panel-content">
                 <div class="source-list">
@@ -795,7 +816,7 @@ export function App() {
                     <button
                       type="button"
                       class="metric-card metric-card-btn"
-                      onClick={() => setActiveNav('news')}
+                      onClick={() => navigateTo('/news')}
                       title="Открыть ленту новостей"
                     >
                       <small>Новостей</small>
@@ -963,7 +984,10 @@ export function App() {
         <button
           type="button"
           class={`mobile-nav-btn${activeNav === 'map' ? ' is-active' : ''}`}
-          onClick={() => setActiveNav('map')}
+          onClick={() => {
+            setActiveNav('map');
+            navigateTo('/monitor');
+          }}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M1 6v16l7-4 8 4 7-4V2l-7 4-8-4-7 4zm7-4v16m8-12v16" />
@@ -974,7 +998,7 @@ export function App() {
         <button
           type="button"
           class={`mobile-nav-btn${activeNav === 'news' ? ' is-active' : ''}`}
-          onClick={() => setActiveNav('news')}
+          onClick={() => navigateTo('/news')}
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M19 20H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v1m4 13a2 2 0 0 1-2-2V7m2 13a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-2m-4-3H9M9 9h6m-6 4h6m-6 4h4" />
@@ -985,7 +1009,10 @@ export function App() {
         <button
           type="button"
           class={`mobile-nav-btn${activeNav === 'chat' ? ' is-active' : ''}`}
-          onClick={() => setActiveNav('chat')}
+          onClick={() => {
+            setActiveNav('chat');
+            navigateTo('/monitor');
+          }}
         >
           <SparklesIcon size={22} />
           <span>ИИ чат</span>
