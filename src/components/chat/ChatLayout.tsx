@@ -84,6 +84,96 @@ export function ChatLayout({ language, initialConversationId }: ChatLayoutProps)
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
+  // Resizable Sidebar State
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
+  const DEFAULT_SIDEBAR_WIDTH = 280;
+  const MIN_SIDEBAR_WIDTH = 200;
+  const MAX_SIDEBAR_WIDTH = 500;
+
+  const [sidebarWidth, setSidebarWidth] = useState<number>(() => {
+    if (typeof window === 'undefined') return DEFAULT_SIDEBAR_WIDTH;
+    try {
+      const saved = localStorage.getItem('tj_chat_sidebar_width');
+      if (saved) {
+        const val = parseInt(saved, 10);
+        if (!isNaN(val) && val >= MIN_SIDEBAR_WIDTH && val <= MAX_SIDEBAR_WIDTH) {
+          return val;
+        }
+      }
+    } catch {}
+    return DEFAULT_SIDEBAR_WIDTH;
+  });
+  const [isResizing, setIsResizing] = useState(false);
+
+  const handleResizeStart = (e: preact.JSX.TargetedPointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    e.preventDefault();
+    setIsResizing(true);
+
+    const startX = e.clientX;
+    const startWidth = sidebarWidth;
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const deltaX = moveEvent.clientX - startX;
+      const containerWidth = workspaceRef.current?.clientWidth || window.innerWidth;
+      const dynamicMax = Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, containerWidth - 360));
+      const nextWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(dynamicMax, startWidth + deltaX));
+      setSidebarWidth(nextWidth);
+    };
+
+    const handlePointerUp = (upEvent: PointerEvent) => {
+      setIsResizing(false);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+
+      const deltaX = upEvent.clientX - startX;
+      const containerWidth = workspaceRef.current?.clientWidth || window.innerWidth;
+      const dynamicMax = Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, containerWidth - 360));
+      const finalWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(dynamicMax, startWidth + deltaX));
+      setSidebarWidth(finalWidth);
+      try {
+        localStorage.setItem('tj_chat_sidebar_width', String(finalWidth));
+      } catch {}
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+  };
+
+  const handleResetWidth = () => {
+    setSidebarWidth(DEFAULT_SIDEBAR_WIDTH);
+    try {
+      localStorage.setItem('tj_chat_sidebar_width', String(DEFAULT_SIDEBAR_WIDTH));
+    } catch {}
+  };
+
+  const handleSplitterKeyDown = (e: preact.JSX.TargetedKeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const next = Math.max(MIN_SIDEBAR_WIDTH, sidebarWidth - 16);
+      setSidebarWidth(next);
+      try { localStorage.setItem('tj_chat_sidebar_width', String(next)); } catch {}
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const containerWidth = workspaceRef.current?.clientWidth || window.innerWidth;
+      const dynamicMax = Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, containerWidth - 360));
+      const next = Math.min(dynamicMax, sidebarWidth + 16);
+      setSidebarWidth(next);
+      try { localStorage.setItem('tj_chat_sidebar_width', String(next)); } catch {}
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setSidebarWidth(MIN_SIDEBAR_WIDTH);
+      try { localStorage.setItem('tj_chat_sidebar_width', String(MIN_SIDEBAR_WIDTH)); } catch {}
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setSidebarWidth(MAX_SIDEBAR_WIDTH);
+      try { localStorage.setItem('tj_chat_sidebar_width', String(MAX_SIDEBAR_WIDTH)); } catch {}
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      handleResetWidth();
+    }
+  };
+
   // Load conversations list
   const loadConversations = async (query = '') => {
     try {
@@ -509,7 +599,10 @@ export function ChatLayout({ language, initialConversationId }: ChatLayoutProps)
   };
 
   return (
-    <div class="chat-workspace-shell">
+    <div
+      ref={workspaceRef}
+      class={`chat-workspace-shell${isResizing ? ' is-resizing' : ''}`}
+    >
       {/* 2nd Column: Chat History Sidebar */}
       <ChatSidebar
         conversations={conversations}
@@ -525,7 +618,30 @@ export function ChatLayout({ language, initialConversationId }: ChatLayoutProps)
         language={language}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        width={sidebarWidth}
+        isResizing={isResizing}
       />
+
+      {/* Resizer Splitter between Sidebar and Main Chat */}
+      <div
+        class={`chat-resize-splitter${isResizing ? ' is-resizing' : ''}`}
+        onPointerDown={handleResizeStart}
+        onDblClick={handleResetWidth}
+        onKeyDown={handleSplitterKeyDown}
+        role="separator"
+        aria-orientation="vertical"
+        aria-valuenow={sidebarWidth}
+        aria-valuemin={MIN_SIDEBAR_WIDTH}
+        aria-valuemax={MAX_SIDEBAR_WIDTH}
+        tabIndex={0}
+        title={
+          isTg
+            ? 'Тағйири паҳнои панели таърих (ду бор пахш кунед барои баргардонидан)'
+            : 'Изменить ширину панели истории (двойной клик для сброса)'
+        }
+      >
+        <div class="chat-resize-handle" />
+      </div>
 
       {/* Mobile Sidebar Backdrop Overlay */}
       {isMobileSidebarOpen && (

@@ -37,6 +37,8 @@ interface ChatSidebarProps {
   language: 'ru' | 'tg';
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
+  width?: number;
+  isResizing?: boolean;
 }
 
 function getTopicIconKey(c: Conversation): string {
@@ -107,6 +109,8 @@ export function ChatSidebar({
   language,
   isMobileOpen = false,
   onCloseMobile,
+  width,
+  isResizing = false,
 }: ChatSidebarProps) {
   const isTg = language === 'tg';
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -308,7 +312,10 @@ export function ChatSidebar({
   };
 
   return (
-    <aside class={`chat-history-sidebar${isMobileOpen ? ' is-mobile-open' : ''}`}>
+    <aside
+      class={`chat-history-sidebar${isMobileOpen ? ' is-mobile-open' : ''}`}
+      style={width ? { width: `${width}px`, ...(isResizing ? { transition: 'none' } : {}) } : undefined}
+    >
       <div class="chat-sidebar-header">
         <button
           type="button"

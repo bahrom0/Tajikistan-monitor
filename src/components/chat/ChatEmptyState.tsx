@@ -56,7 +56,7 @@ export function ChatEmptyState({ onSelectSuggestion, language }: ChatEmptyStateP
     <div class="chat-empty-state">
       <div class="chat-empty-brand">
         <div class="chat-empty-logo-wrap">
-          <img src="/logo.png" alt="Tajikistan Monitor" class="chat-empty-logo" />
+          <img src="/logo.svg" alt="Tajikistan Monitor" class="chat-empty-logo" />
         </div>
         <h2 class="chat-empty-title">
           {isTg ? 'Чӣ тавр метавонам кумак кунам?' : 'Чем я могу помочь?'}

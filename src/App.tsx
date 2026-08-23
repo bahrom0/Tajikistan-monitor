@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import { MarkdownContent, type CitationSource } from './components/MarkdownContent';
 import { TajikistanMap, type GeographyFilter, type LocationSummarySelection, type PlaceResearchSelection } from './components/TajikistanMap';
 import { LandingPage } from './components/LandingPage';
+import { AppPreloader } from './components/AppPreloader';
 import { ChatLayout } from './components/chat/ChatLayout';
 import { chatService } from './lib/chat-service';
 import {
@@ -121,6 +122,7 @@ export function App() {
     return (localStorage.getItem('tj_monitor_lang') as 'ru' | 'tg') || 'ru';
   });
   const [refreshInterval, setRefreshInterval] = useState<number>(300000);
+  const [isEnteringMonitor, setIsEnteringMonitor] = useState(false);
   const [currentPath, setCurrentPath] = useState<string>(() => {
     if (typeof window === 'undefined') return '/';
     const accepted = localStorage.getItem('tj_monitor_privacy_accepted') === 'true';
@@ -147,7 +149,9 @@ export function App() {
 
   const handleAcceptLanding = () => {
     localStorage.setItem('tj_monitor_privacy_accepted', 'true');
+    setIsEnteringMonitor(true);
     navigateTo('/monitor');
+    void load();
   };
 
   useEffect(() => {
@@ -163,6 +167,48 @@ export function App() {
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Dismiss initial HTML splash preloader only when online / connection ready
+  useEffect(() => {
+    const dismissPreloader = () => {
+      const banner = document.getElementById('preloader-offline-banner');
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        if (banner) banner.classList.add('is-visible');
+        return;
+      }
+      const preloader = document.getElementById('app-preloader');
+      if (preloader) {
+        preloader.classList.add('preloader-hidden');
+        window.setTimeout(() => {
+          preloader.remove();
+        }, 400);
+      }
+    };
+
+    if (typeof navigator !== 'undefined' && navigator.onLine) {
+      dismissPreloader();
+    } else {
+      const banner = document.getElementById('preloader-offline-banner');
+      if (banner) banner.classList.add('is-visible');
+    }
+
+    const handleOnline = () => {
+      dismissPreloader();
+      void load();
+    };
+
+    const handleOffline = () => {
+      const banner = document.getElementById('preloader-offline-banner');
+      if (banner) banner.classList.add('is-visible');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   // Apply theme to document
@@ -191,6 +237,15 @@ export function App() {
       const statusData = await statusResponse.json();
       setNews(newsData.items || []);
       setStatuses(statusData.sources || []);
+
+      const preloader = document.getElementById('app-preloader');
+      if (preloader && (typeof navigator === 'undefined' || navigator.onLine)) {
+        preloader.classList.add('preloader-hidden');
+        window.setTimeout(() => preloader.remove(), 400);
+      }
+    } catch {
+      const banner = document.getElementById('preloader-offline-banner');
+      if (banner) banner.classList.add('is-visible');
     } finally {
       setLoading(false);
     }
@@ -531,21 +586,37 @@ export function App() {
 
   if (currentPath !== '/monitor') {
     return (
-      <LandingPage
-        theme={theme}
-        onToggleTheme={toggleTheme}
-        onAccept={handleAcceptLanding}
-        initialLang={language}
-      />
+      <>
+        <LandingPage
+          theme={theme}
+          onToggleTheme={toggleTheme}
+          onAccept={handleAcceptLanding}
+          initialLang={language}
+        />
+        {isEnteringMonitor && (
+          <AppPreloader
+            isEntering={true}
+            onReady={() => setIsEnteringMonitor(false)}
+            lang={language}
+          />
+        )}
+      </>
     );
   }
 
   return (
     <div class={`app-shell nav-${activeNav}`}>
+      {isEnteringMonitor && (
+        <AppPreloader
+          isEntering={true}
+          onReady={() => setIsEnteringMonitor(false)}
+          lang={language}
+        />
+      )}
       {/* Left Pill Navigation Bar (Apple Style) */}
       <aside class="sidebar-nav" aria-label="Основная навигация">
         <div class="sidebar-brand" title="Tajikistan Monitor">
-          <img src="/logo.png" alt="Tajikistan Monitor" class="sidebar-brand-img" />
+          <img src="/logo.svg" alt="Tajikistan Monitor" class="sidebar-brand-img" />
         </div>
 
         <nav class="sidebar-menu">
@@ -618,7 +689,7 @@ export function App() {
         {activeNav !== 'chat' && (
           <header class="topbar">
             <div class="topbar-left">
-              <img src="/logo.png" alt="Tajikistan Monitor" class="topbar-logo" />
+              <img src="/logo.svg" alt="Tajikistan Monitor" class="topbar-logo" />
               <div class="brand-title">
                 <h1>TAJIKISTAN MONITOR</h1>
                 <span>Национальная информационная панель</span>

@@ -115,7 +115,7 @@ export function LandingPage({
       <header class="landing-header">
         <div class="landing-header-inner">
           <div class="landing-brand">
-            <img src="/logo.png" alt="Tajikistan Monitor Logo" class="landing-logo-img" />
+            <img src="/logo.svg" alt="Tajikistan Monitor Logo" class="landing-logo-img" />
             <div class="landing-brand-text">
               <strong>Tajikistan Monitor</strong>
               <span>{t.tagline}</span>
