@@ -1,0 +1,365 @@
+- generic [active] [ref=f1e1]:
+  - status "Загрузка Tajikistan Monitor":
+    - generic:
+      - img "Tajikistan Monitor"
+      - status "Загрузка"
+  - region "Новости Таджикистана" [ref=f1e5]:
+    - generic [ref=f1e6]:
+      - generic [ref=f1e7]:
+        - button "Вернуться к карте" [ref=f1e8] [cursor=pointer]:
+          - generic [ref=f1e9]: Tajikistan
+          - generic [ref=f1e10]: Monitor
+        - searchbox "Поиск по новостям, местам и источникам" [ref=f1e15]
+        - generic [ref=f1e16]:
+          - button "Включить светлую тему" [ref=f1e17] [cursor=pointer]
+          - generic "Профиль пользователя" [ref=f1e24]: Б
+      - navigation "Разделы новостей" [ref=f1e25]:
+        - button "Главное" [ref=f1e26] [cursor=pointer]
+        - button "Последние" [ref=f1e28] [cursor=pointer]
+        - button "Для меня" [ref=f1e29] [cursor=pointer]
+      - generic "Фильтры новостей" [ref=f1e30]:
+        - generic [ref=f1e31]:
+          - generic [ref=f1e32]:
+            - generic [ref=f1e33]: Категория
+            - combobox "Категория" [ref=f1e34] [cursor=pointer]:
+              - option "Категория" [selected]
+              - option "Транспорт"
+              - option "Коммуналка"
+              - option "ЧС"
+              - option "Экономика"
+              - option "Погода"
+              - option "Образование"
+              - option "Инфраструктура"
+              - option "Общество"
+          - generic [ref=f1e37]:
+            - generic [ref=f1e38]: Регион
+            - combobox "Регион" [ref=f1e39] [cursor=pointer]:
+              - option "Согдийская обл." [selected]
+              - option "Согдийская область"
+              - option "Хатлонская область"
+              - option "Районы республиканского подчинения"
+              - option "Республика Таджикистан"
+          - generic [ref=f1e42]:
+            - generic [ref=f1e43]: Важность
+            - combobox "Важность" [ref=f1e44] [cursor=pointer]:
+              - option "Важность" [selected]
+              - option "Срочные"
+              - option "Высокая"
+              - option "Средняя"
+              - option "Низкая"
+          - button "Официальные" [ref=f1e47] [cursor=pointer]
+          - button "Ещё" [ref=f1e53] [cursor=pointer]
+        - generic [ref=f1e57]: 8 новостей
+      - main [ref=f1e58]:
+        - region [ref=f1e59]:
+          - generic [ref=f1e60]:
+            - generic [ref=f1e61]:
+              - generic [ref=f1e62]:
+                - generic [ref=f1e63]: Обновляется каждые 5 минут
+                - heading "Сейчас главное" [level=1] [ref=f1e64]
+              - generic [ref=f1e65]: DEMO-ДАННЫЕ
+            - 'button "Горный перевал в облаках ОПЕРАТИВНО Срочно Срочно: движение грузовиков временно ограничили на перевале Анзоб КЧС Таджикистана • 36 мин назад" [ref=f1e66] [cursor=pointer]':
+              - img "Горный перевал в облаках" [ref=f1e67]
+              - generic [ref=f1e69]:
+                - generic [ref=f1e70]:
+                  - generic [ref=f1e71]: ОПЕРАТИВНО
+                  - generic [ref=f1e72]: Срочно
+                - strong [ref=f1e73]: "Срочно: движение грузовиков временно ограничили на перевале Анзоб"
+                - generic [ref=f1e74]:
+                  - generic [ref=f1e75]: КЧС Таджикистана
+                  - generic [ref=f1e76]: •
+                  - generic [ref=f1e77]: 36 мин назад
+          - generic "Другие важные новости" [ref=f1e80]:
+            - button "Барки точик • Официальный Высокая В нескольких районах Согдийской области плановые отключения электроснабжения 1 ч назад" [ref=f1e81] [cursor=pointer]:
+              - generic [ref=f1e82]:
+                - generic [ref=f1e83]:
+                  - generic [ref=f1e84]:
+                    - generic [ref=f1e85]: Барки точик
+                    - generic [ref=f1e86]: •
+                    - generic [ref=f1e87]: Официальный
+                  - generic [ref=f1e88]: Высокая
+                - strong [ref=f1e89]: В нескольких районах Согдийской области плановые отключения электроснабжения
+                - generic [ref=f1e90]: 1 ч назад
+            - button "Ховар • Официальный Высокая В Согдийской области начался ремонт участка трассы А-373 2 ч назад" [ref=f1e96] [cursor=pointer]:
+              - generic [ref=f1e97]:
+                - generic [ref=f1e98]:
+                  - generic [ref=f1e99]:
+                    - generic [ref=f1e100]: Ховар
+                    - generic [ref=f1e101]: •
+                    - generic [ref=f1e102]: Официальный
+                  - generic [ref=f1e103]: Высокая
+                - strong [ref=f1e104]: В Согдийской области начался ремонт участка трассы А-373
+                - generic [ref=f1e105]: 2 ч назад
+          - region [ref=f1e111]:
+            - generic [ref=f1e113]:
+              - generic [ref=f1e114]: Сводка по стране
+              - heading "Коротко сейчас" [level=2] [ref=f1e115]
+            - generic [ref=f1e116]:
+              - article [ref=f1e117]:
+                - strong [ref=f1e121]: Свет
+                - generic [ref=f1e122]: 3 района
+                - generic [ref=f1e123]: Отключения
+                - generic [ref=f1e124]: 1 ч назад
+              - article [ref=f1e125]:
+                - strong [ref=f1e133]: Погода
+                - generic [ref=f1e134]: +24°
+                - generic [ref=f1e135]: Ясно
+                - generic [ref=f1e136]: 30 мин назад
+              - article [ref=f1e137]:
+                - strong [ref=f1e142]: Курс валют
+                - generic [ref=f1e143]: "10.92"
+                - generic [ref=f1e144]: USD / TJS
+                - generic [ref=f1e145]: −0.03
+              - article [ref=f1e146]:
+                - strong [ref=f1e150]: Дорога
+                - generic [ref=f1e151]: А-376
+                - generic [ref=f1e152]: Перекрыт участок
+                - generic [ref=f1e153]: 2 ч назад
+              - article [ref=f1e154]:
+                - strong [ref=f1e159]: Вода
+                - generic [ref=f1e160]: Чилучор
+                - generic [ref=f1e161]: Ограничение
+                - generic [ref=f1e162]: 3 ч назад
+        - generic [ref=f1e163]:
+          - region [ref=f1e164]:
+            - generic [ref=f1e165]:
+              - generic [ref=f1e166]:
+                - generic [ref=f1e167]: Локальный контекст
+                - heading "Что происходит рядом" [level=2] [ref=f1e168]
+              - button "Открыть карту" [ref=f1e169] [cursor=pointer]
+            - generic [ref=f1e172]:
+              - generic "Демонстрационный слой карты Таджикистана" [ref=f1e173]:
+                - generic [ref=f1e174]: Согд
+                - generic [ref=f1e175]: Хатлон
+                - generic [ref=f1e176]: ГБАО
+                - generic [ref=f1e180]: Демо-слой территорий
+              - generic [ref=f1e181]:
+                - button "Согдийская обл. 18" [ref=f1e182] [cursor=pointer]:
+                  - generic [ref=f1e183]: Согдийская обл.
+                  - strong [ref=f1e184]: "18"
+                - button "Душанбе 14" [ref=f1e187] [cursor=pointer]:
+                  - generic [ref=f1e188]: Душанбе
+                  - strong [ref=f1e189]: "14"
+                - button "Хатлонская обл. 9" [ref=f1e192] [cursor=pointer]:
+                  - generic [ref=f1e193]: Хатлонская обл.
+                  - strong [ref=f1e194]: "9"
+                - button "ГБАО 3" [ref=f1e197] [cursor=pointer]:
+                  - generic [ref=f1e198]: ГБАО
+                  - strong [ref=f1e199]: "3"
+                - button "Открыть карту" [ref=f1e202] [cursor=pointer]
+          - region [ref=f1e203]:
+            - generic [ref=f1e204]:
+              - generic [ref=f1e205]:
+                - generic [ref=f1e206]: Официальные источники и СМИ
+                - heading "Лента новостей" [level=2] [ref=f1e207]
+              - generic [ref=f1e208]: 8 материалов
+            - feed [ref=f1e209]:
+              - article [ref=f1e210]:
+                - 'button "Горный перевал в облаках КЧС Таджикистана • Официальный Срочно 36 мин назад Срочно: движение грузовиков временно ограничили на перевале Анзоб Ограничение введено из-за ухудшения погодных условий. Легковые автомобили пропускают по решению дорожных служб. Анзоб Рекомендуем" [ref=f1e211] [cursor=pointer]':
+                  - img "Горный перевал в облаках" [ref=f1e212]
+                  - generic [ref=f1e213]:
+                    - generic [ref=f1e214]:
+                      - generic [ref=f1e215]:
+                        - generic [ref=f1e216]: КЧС Таджикистана
+                        - generic [ref=f1e217]: •
+                        - generic [ref=f1e218]: Официальный
+                      - generic [ref=f1e219]: Срочно
+                      - time [ref=f1e220]: 36 мин назад
+                    - strong [ref=f1e221]: "Срочно: движение грузовиков временно ограничили на перевале Анзоб"
+                    - generic [ref=f1e222]: Ограничение введено из-за ухудшения погодных условий. Легковые автомобили пропускают по решению дорожных служб.
+                    - generic [ref=f1e223]:
+                      - generic [ref=f1e224]: Анзоб
+                      - generic [ref=f1e228]: Рекомендуем
+                - button "Сохранить новость" [ref=f1e231] [cursor=pointer]
+              - article [ref=f1e234]:
+                - button "Электрические линии на фоне неба Барки точик • Официальный Высокая 1 ч назад В нескольких районах Согдийской области плановые отключения электроснабжения Отключения связаны с профилактическими работами на подстанциях. Электроснабжение восстановят поэтапно до конца дня. Худжанд Рекомендуем" [ref=f1e235] [cursor=pointer]:
+                  - img "Электрические линии на фоне неба" [ref=f1e236]
+                  - generic [ref=f1e237]:
+                    - generic [ref=f1e238]:
+                      - generic [ref=f1e239]:
+                        - generic [ref=f1e240]: Барки точик
+                        - generic [ref=f1e241]: •
+                        - generic [ref=f1e242]: Официальный
+                      - generic [ref=f1e243]: Высокая
+                      - time [ref=f1e244]: 1 ч назад
+                    - strong [ref=f1e245]: В нескольких районах Согдийской области плановые отключения электроснабжения
+                    - generic [ref=f1e246]: Отключения связаны с профилактическими работами на подстанциях. Электроснабжение восстановят поэтапно до конца дня.
+                    - generic [ref=f1e247]:
+                      - generic [ref=f1e248]: Худжанд
+                      - generic [ref=f1e252]: Рекомендуем
+                - button "Сохранить новость" [ref=f1e255] [cursor=pointer]
+              - article [ref=f1e258]:
+                - button "Горная дорога в Согдийской области Ховар • Официальный Высокая 2 ч назад В Согдийской области начался ремонт участка трассы А-373 Работы на горном участке идут с опережением графика. Власти ожидают меньше перебоев для нескольких районов уже на этой неделе. Худжанд Рекомендуем" [ref=f1e259] [cursor=pointer]:
+                  - img "Горная дорога в Согдийской области" [ref=f1e260]
+                  - generic [ref=f1e261]:
+                    - generic [ref=f1e262]:
+                      - generic [ref=f1e263]:
+                        - generic [ref=f1e264]: Ховар
+                        - generic [ref=f1e265]: •
+                        - generic [ref=f1e266]: Официальный
+                      - generic [ref=f1e267]: Высокая
+                      - time [ref=f1e268]: 2 ч назад
+                    - strong [ref=f1e269]: В Согдийской области начался ремонт участка трассы А-373
+                    - generic [ref=f1e270]: Работы на горном участке идут с опережением графика. Власти ожидают меньше перебоев для нескольких районов уже на этой неделе.
+                    - generic [ref=f1e271]:
+                      - generic [ref=f1e272]: Худжанд
+                      - generic [ref=f1e276]: Рекомендуем
+                - button "Сохранить новость" [ref=f1e279] [cursor=pointer]
+              - article [ref=f1e282]:
+                - button "Облака над горным городом Агентство по гидрометеорологии • Официальный Высокая 5 ч назад Гидрометслужба предупредила о грозах в западных районах Вечером ожидаются кратковременные ливни и порывистый ветер. Водителям рекомендуют снизить скорость на открытых участках. Бохтар Рекомендуем" [ref=f1e283] [cursor=pointer]:
+                  - img "Облака над горным городом" [ref=f1e284]
+                  - generic [ref=f1e285]:
+                    - generic [ref=f1e286]:
+                      - generic [ref=f1e287]:
+                        - generic [ref=f1e288]: Агентство по гидрометеорологии
+                        - generic [ref=f1e289]: •
+                        - generic [ref=f1e290]: Официальный
+                      - generic [ref=f1e291]: Высокая
+                      - time [ref=f1e292]: 5 ч назад
+                    - strong [ref=f1e293]: Гидрометслужба предупредила о грозах в западных районах
+                    - generic [ref=f1e294]: Вечером ожидаются кратковременные ливни и порывистый ветер. Водителям рекомендуют снизить скорость на открытых участках.
+                    - generic [ref=f1e295]:
+                      - generic [ref=f1e296]: Бохтар
+                      - generic [ref=f1e300]: Рекомендуем
+                - button "Сохранить новость" [ref=f1e303] [cursor=pointer]
+              - article [ref=f1e306]:
+                - button "Топливный пистолет на автозаправке Asia-Plus • СМИ Средняя 3 ч назад В Таджикистане выросли цены на ГСМ Бензин АИ-92 и дизельное топливо подорожали на большинстве АЗС страны. Душанбе Рекомендуем" [ref=f1e307] [cursor=pointer]:
+                  - img "Топливный пистолет на автозаправке" [ref=f1e308]
+                  - generic [ref=f1e309]:
+                    - generic [ref=f1e310]:
+                      - generic [ref=f1e311]:
+                        - generic [ref=f1e312]: Asia-Plus
+                        - generic [ref=f1e313]: •
+                        - generic [ref=f1e314]: СМИ
+                      - generic [ref=f1e315]: Средняя
+                      - time [ref=f1e316]: 3 ч назад
+                    - strong [ref=f1e317]: В Таджикистане выросли цены на ГСМ
+                    - generic [ref=f1e318]: Бензин АИ-92 и дизельное топливо подорожали на большинстве АЗС страны.
+                    - generic [ref=f1e319]:
+                      - generic [ref=f1e320]: Душанбе
+                      - generic [ref=f1e324]: Рекомендуем
+                - button "Сохранить новость" [ref=f1e327] [cursor=pointer]
+              - article [ref=f1e330]:
+                - button "Ученики на занятии в светлом классе Пресс-служба Согдийской области • Официальный Средняя 1 дн. назад В Согдийской области открыли 12 новых школ Новые здания рассчитаны на несколько тысяч учеников и уже подключены к базовой инфраструктуре. Истаравшан" [ref=f1e331] [cursor=pointer]:
+                  - img "Ученики на занятии в светлом классе" [ref=f1e332]
+                  - generic [ref=f1e333]:
+                    - generic [ref=f1e334]:
+                      - generic [ref=f1e335]:
+                        - generic [ref=f1e336]: Пресс-служба Согдийской области
+                        - generic [ref=f1e337]: •
+                        - generic [ref=f1e338]: Официальный
+                      - generic [ref=f1e339]: Средняя
+                      - time [ref=f1e340]: 1 дн. назад
+                    - strong [ref=f1e341]: В Согдийской области открыли 12 новых школ
+                    - generic [ref=f1e342]: Новые здания рассчитаны на несколько тысяч учеников и уже подключены к базовой инфраструктуре.
+                    - generic [ref=f1e343]: Истаравшан
+                - button "Сохранить новость" [ref=f1e348] [cursor=pointer]
+        - generic [ref=f1e351]:
+          - region [ref=f1e352]:
+            - generic [ref=f1e353]:
+              - generic [ref=f1e354]:
+                - generic [ref=f1e355]: Проверенные документы
+                - heading "Официально" [level=2] [ref=f1e356]
+              - button "Все документы" [ref=f1e357] [cursor=pointer]
+            - generic [ref=f1e360]:
+              - button "Постановление Правительства РТ №512 О подготовке объектов ЖКХ к осенне-зимнему периоду 2024–2025 гг. 2 ч назад" [ref=f1e361] [cursor=pointer]:
+                - generic [ref=f1e366]:
+                  - strong [ref=f1e367]: Постановление Правительства РТ №512
+                  - generic [ref=f1e368]: О подготовке объектов ЖКХ к осенне-зимнему периоду 2024–2025 гг.
+                - time [ref=f1e369]: 2 ч назад
+              - button "Распоряжение Председателя Согдийской области №210-р О проведении месячника благоустройства и санитарной очистки 4 ч назад" [ref=f1e370] [cursor=pointer]:
+                - generic [ref=f1e375]:
+                  - strong [ref=f1e376]: Распоряжение Председателя Согдийской области №210-р
+                  - generic [ref=f1e377]: О проведении месячника благоустройства и санитарной очистки
+                - time [ref=f1e378]: 4 ч назад
+              - button "Приказ Минтранса РТ №145 Об утверждении графика движения пригородных маршрутов 6 ч назад" [ref=f1e379] [cursor=pointer]:
+                - generic [ref=f1e384]:
+                  - strong [ref=f1e385]: Приказ Минтранса РТ №145
+                  - generic [ref=f1e386]: Об утверждении графика движения пригородных маршрутов
+                - time [ref=f1e387]: 6 ч назад
+          - region [ref=f1e388]:
+            - generic [ref=f1e389]:
+              - generic [ref=f1e390]:
+                - generic [ref=f1e391]: Что читают сейчас
+                - heading "Популярно сейчас" [level=2] [ref=f1e392]
+              - generic [ref=f1e393]: LIVE
+            - generic [ref=f1e395]:
+              - button "1 В Согдийской области начался ремонт участка трассы А-373 Транспорт · Ховар ↓ 0.03" [ref=f1e396] [cursor=pointer]:
+                - generic [ref=f1e397]: "1"
+                - generic [ref=f1e398]:
+                  - strong [ref=f1e399]: В Согдийской области начался ремонт участка трассы А-373
+                  - generic [ref=f1e400]: Транспорт · Ховар
+                - generic [ref=f1e401]: ↓ 0.03
+              - button "2 В нескольких районах Согдийской области плановые отключения электроснабжения Коммуналка · Барки точик —" [ref=f1e402] [cursor=pointer]:
+                - generic [ref=f1e403]: "2"
+                - generic [ref=f1e404]:
+                  - strong [ref=f1e405]: В нескольких районах Согдийской области плановые отключения электроснабжения
+                  - generic [ref=f1e406]: Коммуналка · Барки точик
+                - generic [ref=f1e407]: —
+              - 'button "3 Срочно: движение грузовиков временно ограничили на перевале Анзоб ЧС · КЧС Таджикистана ↑ 6" [ref=f1e408] [cursor=pointer]':
+                - generic [ref=f1e409]: "3"
+                - generic [ref=f1e410]:
+                  - strong [ref=f1e411]: "Срочно: движение грузовиков временно ограничили на перевале Анзоб"
+                  - generic [ref=f1e412]: ЧС · КЧС Таджикистана
+                - generic [ref=f1e413]: ↑ 6
+              - button "4 В Таджикистане выросли цены на ГСМ Экономика · Asia-Plus ↑ 7" [ref=f1e414] [cursor=pointer]:
+                - generic [ref=f1e415]: "4"
+                - generic [ref=f1e416]:
+                  - strong [ref=f1e417]: В Таджикистане выросли цены на ГСМ
+                  - generic [ref=f1e418]: Экономика · Asia-Plus
+                - generic [ref=f1e419]: ↑ 7
+              - button "5 Гидрометслужба предупредила о грозах в западных районах Погода · Агентство по гидрометеорологии ↑ 8" [ref=f1e420] [cursor=pointer]:
+                - generic [ref=f1e421]: "5"
+                - generic [ref=f1e422]:
+                  - strong [ref=f1e423]: Гидрометслужба предупредила о грозах в западных районах
+                  - generic [ref=f1e424]: Погода · Агентство по гидрометеорологии
+                - generic [ref=f1e425]: ↑ 8
+        - region [ref=f1e426]:
+          - generic [ref=f1e427]:
+            - generic [ref=f1e428]:
+              - generic [ref=f1e429]: Подборка редакции
+              - heading "Не пропустите" [level=2] [ref=f1e430]
+            - generic [ref=f1e431]:
+              - button "Предыдущие рекомендации" [ref=f1e432] [cursor=pointer]
+              - button "Следующие рекомендации" [ref=f1e435] [cursor=pointer]
+          - generic [ref=f1e438]:
+            - button "Облака над горным городом Агентство по гидрометеорологии • Официальный Высокая Гидрометслужба предупредила о грозах в западных районах" [ref=f1e439] [cursor=pointer]:
+              - img "Облака над горным городом" [ref=f1e441]
+              - generic [ref=f1e447]:
+                - generic [ref=f1e448]:
+                  - generic [ref=f1e449]:
+                    - generic [ref=f1e450]: Агентство по гидрометеорологии
+                    - generic [ref=f1e451]: •
+                    - generic [ref=f1e452]: Официальный
+                  - generic [ref=f1e453]: Высокая
+                - strong [ref=f1e454]: Гидрометслужба предупредила о грозах в западных районах
+            - button "Ученики на занятии в светлом классе Пресс-служба Согдийской области • Официальный Средняя В Согдийской области открыли 12 новых школ" [ref=f1e455] [cursor=pointer]:
+              - img "Ученики на занятии в светлом классе" [ref=f1e457]
+              - generic [ref=f1e463]:
+                - generic [ref=f1e464]:
+                  - generic [ref=f1e465]:
+                    - generic [ref=f1e466]: Пресс-служба Согдийской области
+                    - generic [ref=f1e467]: •
+                    - generic [ref=f1e468]: Официальный
+                  - generic [ref=f1e469]: Средняя
+                - strong [ref=f1e470]: В Согдийской области открыли 12 новых школ
+            - button "Водохранилище между горами Энергетическая компания • Официальный Низкая Уровень воды в Нурекском водохранилище стабилизировался" [ref=f1e471] [cursor=pointer]:
+              - img "Водохранилище между горами" [ref=f1e473]
+              - generic [ref=f1e479]:
+                - generic [ref=f1e480]:
+                  - generic [ref=f1e481]:
+                    - generic [ref=f1e482]: Энергетическая компания
+                    - generic [ref=f1e483]: •
+                    - generic [ref=f1e484]: Официальный
+                  - generic [ref=f1e485]: Низкая
+                - strong [ref=f1e486]: Уровень воды в Нурекском водохранилище стабилизировался
+            - button "Аллея городского парка Ховар • Официальный Низкая В Бустоне обновили центральный парк культуры и отдыха" [ref=f1e487] [cursor=pointer]:
+              - img "Аллея городского парка" [ref=f1e489]
+              - generic [ref=f1e495]:
+                - generic [ref=f1e496]:
+                  - generic [ref=f1e497]:
+                    - generic [ref=f1e498]: Ховар
+                    - generic [ref=f1e499]: •
+                    - generic [ref=f1e500]: Официальный
+                  - generic [ref=f1e501]: Низкая
+                - strong [ref=f1e502]: В Бустоне обновили центральный парк культуры и отдыха

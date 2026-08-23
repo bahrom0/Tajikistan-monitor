@@ -1012,7 +1012,7 @@ export function App() {
               <div class="modal-header-info">
                 <span class="modal-category-label">
                   {placeResearch
-                    ? 'AI Place Research'
+                    ? ''
                     : locationSummary
                       ? 'AI Location Summary'
                       : 'AI News Explainer'}

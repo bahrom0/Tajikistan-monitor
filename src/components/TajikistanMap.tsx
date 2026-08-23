@@ -381,7 +381,7 @@ const createPopupContent = (
     ? `Координаты: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`
     : 'Границы: административная геометрия OSM';
   const datasetDate = document.createElement('small');
-  datasetDate.textContent = `Набор данных: ${location.dataset_date || 'дата не указана'}`;
+  // datasetDate.textContent = `Набор данных: ${location.dataset_date || 'дата не указана'}`;
 
   const periodContainer = document.createElement('div');
   periodContainer.className = 'location-research-period';
