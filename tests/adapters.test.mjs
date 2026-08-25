@@ -4,7 +4,8 @@ import test from 'node:test';
 import { parseKchsHtml } from '../server/adapters/kchs.mjs';
 import { parseMeteoHtml } from '../server/adapters/meteo.mjs';
 import { parseNbtNewsHtml, parseNbtRatesHtml } from '../server/adapters/nbt.mjs';
-import { AdapterContractError, fetchTextWithRetry } from '../server/lib/html.mjs';
+import { AdapterContractError, extractImageUrl, fetchTextWithRetry } from '../server/lib/html.mjs';
+import { parseFeed } from '../server/lib/rss.mjs';
 
 const fixture = (name) => readFile(new URL(`fixtures/${name}`, import.meta.url), 'utf8');
 const source = (id, url) => ({ id, name: id, url });
@@ -14,6 +15,7 @@ test('KCHS adapter normalizes official emergency cards', async () => {
   assert.equal(result.items.length, 1);
   assert.equal(result.items[0].severity, 'alert');
   assert.equal(result.items[0].url, 'https://www.kchs.tj/node/100');
+  assert.equal(result.items[0].imageUrl, 'https://www.kchs.tj/sites/default/files/flood-warning.jpg');
 });
 
 test('Meteo adapter separates alert from forecast', async () => {
@@ -27,8 +29,22 @@ test('NBT adapters keep news and rates as separate contracts', async () => {
   const news = parseNbtNewsHtml(await fixture('nbt-news.html'), source('nbt-news', 'https://nbt.tj/ru/news/'));
   const rates = parseNbtRatesHtml(await fixture('nbt-rates.html'), source('nbt-rates', 'https://nbt.tj/ru/kurs/kurs.php'));
   assert.equal(news.items[0].url, 'https://nbt.tj/ru/news/100/');
+  assert.equal(news.items[0].imageUrl, 'https://nbt.tj/upload/news/auction.jpg');
   assert.deepEqual(rates.rates.map(({ code, rateTjs }) => [code, rateTjs]), [['USD', 9.25], ['EUR', 10.7]]);
   assert.equal(rates.items.length, 0);
+});
+
+test('RSS and article markup expose only HTTP(S) source images', () => {
+  const parsed = parseFeed(`
+    <rss><channel><item>
+      <title>Официальная публикация</title>
+      <link>https://official.test/news/1</link>
+      <pubDate>Thu, 14 Aug 2026 08:00:00 GMT</pubDate>
+      <description><![CDATA[<p>Описание</p><img src="/media/news.jpg">]]></description>
+    </item></channel></rss>
+  `, source('official', 'https://official.test/feed'));
+  assert.equal(parsed[0].imageUrl, 'https://official.test/media/news.jpg');
+  assert.equal(extractImageUrl('<meta property="og:image" content="javascript:alert(1)"><img src="data:image/png;base64,AA">', 'https://official.test/news/1'), '');
 });
 
 test('selector drift is reported as degraded contract error', () => {

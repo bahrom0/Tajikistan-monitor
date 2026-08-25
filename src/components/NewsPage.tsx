@@ -21,13 +21,11 @@ import {
   TrendingUpIcon,
 } from './icons';
 import {
-  demoNews,
-  demoNewsCategories,
-  demoNewsImportanceOptions,
-  demoNewsRegions,
-  type DemoNewsImportance,
-  type DemoNewsItem,
-} from '../data/news-demo';
+  fetchNewsOverview,
+  type NewsArticle,
+  type NewsArticleImportance,
+  type NewsQuickCard,
+} from '../lib/news-service';
 
 type NewsPageProps = {
   theme: 'dark' | 'light';
@@ -37,27 +35,34 @@ type NewsPageProps = {
 
 type NewsTab = 'Главное' | 'Последние' | 'Для меня';
 
-const importanceMeta: Record<DemoNewsImportance, { label: string; className: string }> = {
+const importanceMeta: Record<NewsArticleImportance, { label: string; className: string }> = {
   critical: { label: 'Срочно', className: 'is-critical' },
   high: { label: 'Высокая', className: 'is-high' },
   medium: { label: 'Средняя', className: 'is-medium' },
   low: { label: 'Низкая', className: 'is-low' },
 };
 
-const importanceScore: Record<DemoNewsImportance, number> = {
+const importanceScore: Record<NewsArticleImportance, number> = {
   critical: 4,
   high: 3,
   medium: 2,
   low: 1,
 };
 
-const quickNow = [
-  { icon: <LightbulbIcon size={21} />, title: 'Свет', value: '3 района', detail: 'Отключения', meta: '1 ч назад', tone: 'blue' },
-  { icon: <SunIcon size={21} />, title: 'Погода', value: '+24°', detail: 'Ясно', meta: '30 мин назад', tone: 'amber' },
-  { icon: <TrendingUpIcon size={21} />, title: 'Курс валют', value: '10.92', detail: 'USD / TJS', meta: '−0.03', tone: 'indigo' },
-  { icon: <AlertTriangleIcon size={21} />, title: 'Дорога', value: 'А-376', detail: 'Перекрыт участок', meta: '2 ч назад', tone: 'red' },
-  { icon: <MapPinIcon size={21} />, title: 'Вода', value: 'Чилучор', detail: 'Ограничение', meta: '3 ч назад', tone: 'blue' },
+const importanceOptions: Array<{ value: NewsArticleImportance | 'all'; label: string }> = [
+  { value: 'all', label: 'Любая важность' },
+  { value: 'critical', label: 'Срочные' },
+  { value: 'high', label: 'Высокая' },
+  { value: 'medium', label: 'Средняя' },
+  { value: 'low', label: 'Низкая' },
 ];
+
+const QuickIcon = ({ item }: { item: NewsQuickCard }) => {
+  if (item.kind === 'weather') return <SunIcon size={21} />;
+  if (item.kind === 'exchange' || item.kind === 'finance') return <TrendingUpIcon size={21} />;
+  if (item.kind === 'road') return <MapPinIcon size={21} />;
+  return <AlertTriangleIcon size={21} />;
+};
 
 const tabLabels: NewsTab[] = ['Главное', 'Последние', 'Для меня'];
 
@@ -86,22 +91,15 @@ const getNewsIdFromPath = () => {
   return match ? decodeURIComponent(match[1]) : null;
 };
 
-const NewsImage = ({ item, className = '' }: { item: DemoNewsItem; className?: string }) => (
-  <img
-    class={className}
-    src={item.imageUrl}
-    alt={item.imageAlt}
-    loading="lazy"
-    onError={(event) => {
-      const image = event.currentTarget as HTMLImageElement;
-      if (image.dataset.fallback) return;
-      image.dataset.fallback = 'true';
-      image.src = '/news-demo-khujand.jpg';
-    }}
-  />
-);
+const NewsImage = ({ item, className = '' }: { item: NewsArticle; className?: string }) => {
+  const [failed, setFailed] = useState(false);
+  if (!item.imageUrl || failed) {
+    return <span class={`${className} news-image-unavailable`} role="img" aria-label="Изображение у источника отсутствует"><NewspaperIcon size={28} /></span>;
+  }
+  return <img class={className} src={item.imageUrl} alt={item.imageAlt} loading="lazy" onError={() => setFailed(true)} />;
+};
 
-const SourceLine = ({ item, compact = false }: { item: DemoNewsItem; compact?: boolean }) => (
+const SourceLine = ({ item, compact = false }: { item: NewsArticle; compact?: boolean }) => (
   <div class={`news-source-line${compact ? ' is-compact' : ''}`}>
     <span class="news-source-name">{item.source}</span>
     <span class="news-source-separator">•</span>
@@ -109,7 +107,7 @@ const SourceLine = ({ item, compact = false }: { item: DemoNewsItem; compact?: b
   </div>
 );
 
-const ImportanceBadge = ({ item, compact = false }: { item: DemoNewsItem; compact?: boolean }) => (
+const ImportanceBadge = ({ item, compact = false }: { item: NewsArticle; compact?: boolean }) => (
   <span class={`news-importance ${importanceMeta[item.importance].className}${compact ? ' is-compact' : ''}`}>
     {importanceMeta[item.importance].label}
   </span>
@@ -196,20 +194,61 @@ function NewsDropdown({ filterKey, label, value, displayValue, options, openFilt
 }
 
 type NewsArticleViewProps = {
-  item: DemoNewsItem | null;
+  item: NewsArticle | null;
+  items: NewsArticle[];
   theme: 'dark' | 'light';
   onToggleTheme: () => void;
   onBack: () => void;
-  onOpenRelated: (item: DemoNewsItem) => void;
+  onOpenRelated: (item: NewsArticle) => void;
   saved: boolean;
   onToggleSaved: () => void;
 };
 
-function NewsArticleView({ item, theme, onToggleTheme, onBack, onOpenRelated, saved, onToggleSaved }: NewsArticleViewProps) {
-  const [aiExpanded, setAiExpanded] = useState(true);
+function NewsArticleView({ item, items, theme, onToggleTheme, onBack, onOpenRelated, saved, onToggleSaved }: NewsArticleViewProps) {
+  const [aiExpanded, setAiExpanded] = useState(false);
+  const [aiSummary, setAiSummary] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
   const related = item
-    ? demoNews.filter((candidate) => candidate.id !== item.id && (candidate.category === item.category || candidate.region === item.region)).slice(0, 3)
+    ? items.filter((candidate) => candidate.id !== item.id && (candidate.category === item.category || candidate.region === item.region)).slice(0, 3)
     : [];
+
+  useEffect(() => {
+    setAiExpanded(false);
+    setAiSummary('');
+    setAiError('');
+    setAiLoading(false);
+  }, [item?.id]);
+
+  const requestAiSummary = async () => {
+    if (!item || aiLoading || aiSummary) return;
+    setAiLoading(true);
+    setAiError('');
+    try {
+      const response = await fetch('/api/ai/explain', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ title: item.title, description: item.summary, question: 'Кратко перескажи новость простыми словами и перечисли только подтверждённые факты.' }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(payload?.error || `ИИ-сервис: HTTP ${response.status}`);
+      }
+      const text = (await response.text()).trim();
+      if (!text) throw new Error('ИИ-сервис вернул пустой ответ.');
+      setAiSummary(text);
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : 'Не удалось получить ИИ-пересказ.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const toggleAiSummary = () => {
+    const next = !aiExpanded;
+    setAiExpanded(next);
+    if (next) void requestAiSummary();
+  };
 
   return (
     <section class="news-route news-detail-route" aria-label={item ? `Новость: ${item.title}` : 'Новость не найдена'}>
@@ -260,7 +299,7 @@ function NewsArticleView({ item, theme, onToggleTheme, onBack, onOpenRelated, sa
               </div>
               <figure class="news-detail-cover">
                 <NewsImage item={item} className="news-detail-image" />
-                <figcaption>{item.demo ? 'Демонстрационный материал' : 'Изображение источника'}</figcaption>
+                <figcaption>{item.imageUrl ? 'Изображение из первоисточника' : 'Источник не опубликовал изображение'}</figcaption>
               </figure>
               <div class={`news-detail-importance ${importanceMeta[item.importance].className}`}>
                 <ShieldCheckIcon size={18} />
@@ -270,16 +309,17 @@ function NewsArticleView({ item, theme, onToggleTheme, onBack, onOpenRelated, sa
                 </span>
               </div>
               <section class={`news-ai-summary${aiExpanded ? ' is-open' : ''}`}>
-                <button type="button" class="news-ai-summary-head" onClick={() => setAiExpanded((value) => !value)} aria-expanded={aiExpanded}>
+                <button type="button" class="news-ai-summary-head" onClick={toggleAiSummary} aria-expanded={aiExpanded}>
                   <span class="news-ai-icon"><SparklesIcon size={21} /></span>
                   <span><strong>AI-кратко</strong><small>Понятное объяснение без сложных вопросов</small></span>
                   <ChevronDownIcon size={18} />
                 </button>
                 {aiExpanded && (
                   <div class="news-ai-summary-content">
-                    <p>{item.aiSummary}</p>
-                    <h3>Что важно знать</h3>
-                    <ul>{item.aiFacts.map((fact) => <li key={fact}>{fact}</li>)}</ul>
+                    {aiLoading && <p>ИИ обрабатывает материал…</p>}
+                    {aiError && <p class="news-ai-error">{aiError}</p>}
+                    {aiSummary && <p>{aiSummary}</p>}
+                    {aiError && <button type="button" class="news-outline-button" onClick={requestAiSummary}>Повторить запрос</button>}
                     <small class="news-ai-disclaimer">ИИ-пересказ для удобного чтения. Сверяйте детали с первоисточником.</small>
                   </div>
                 )}
@@ -292,14 +332,16 @@ function NewsArticleView({ item, theme, onToggleTheme, onBack, onOpenRelated, sa
               <div class="news-detail-article-copy">
                 <h2>Подробности</h2>
                 {item.body.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}
+                {!item.body.length && <p>Подробности доступны на странице первоисточника.</p>}
               </div>
               <div class="news-detail-source-links">
                 <h2>Источники и ссылки</h2>
-                <a href={item.originalUrl} target="_blank" rel="noreferrer" class="news-original-link">
-                  <ExternalLinkIcon size={15} />
-                  <span>Открыть первоисточник: {item.source}</span>
-                </a>
-                <small>Ссылка ведёт на внешний сайт источника. Demo-материал не является официальной публикацией.</small>
+                {item.originalUrl ? (
+                  <a href={item.originalUrl} target="_blank" rel="noreferrer" class="news-original-link">
+                    <ExternalLinkIcon size={15} />
+                    <span>Открыть первоисточник: {item.source}</span>
+                  </a>
+                ) : <small>Источник не передал ссылку на отдельную публикацию.</small>}
               </div>
               <div class="news-detail-actions">
                 <button type="button" class={`news-detail-save${saved ? ' is-saved' : ''}`} onClick={onToggleSaved} aria-pressed={saved}>
@@ -316,7 +358,7 @@ function NewsArticleView({ item, theme, onToggleTheme, onBack, onOpenRelated, sa
               </section>
               <section class="news-detail-side-card">
                 <h2>Связанные ссылки</h2>
-                <a href={item.originalUrl} target="_blank" rel="noreferrer"><ExternalLinkIcon size={14} />Первоисточник</a>
+                {item.originalUrl && <a href={item.originalUrl} target="_blank" rel="noreferrer"><ExternalLinkIcon size={14} />Первоисточник</a>}
                 {item.tags.map((tag) => <span class="news-detail-side-tag" key={tag}>#{tag}</span>)}
               </section>
               {related.length > 0 && (
@@ -339,12 +381,17 @@ function NewsArticleView({ item, theme, onToggleTheme, onBack, onOpenRelated, sa
 }
 
 export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps) {
+  const [news, setNews] = useState<NewsArticle[]>([]);
+  const [quickNow, setQuickNow] = useState<NewsQuickCard[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reloadToken, setReloadToken] = useState(0);
   const [activeTab, setActiveTab] = useState<NewsTab>('Главное');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('Все');
   const [region, setRegion] = useState('Все регионы');
   const [city, setCity] = useState('Все города');
-  const [importance, setImportance] = useState<DemoNewsImportance | 'all'>('all');
+  const [importance, setImportance] = useState<NewsArticleImportance | 'all'>('all');
   const [officialOnly, setOfficialOnly] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
   const [openFilter, setOpenFilter] = useState<NewsFilterKey | null>(null);
@@ -353,7 +400,26 @@ export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps)
   const newsViewportRef = useRef<HTMLDivElement>(null);
   const feedScrollTopRef = useRef(0);
 
-  const selected = selectedId ? demoNews.find((item) => item.id === selectedId) ?? null : null;
+  const selected = selectedId ? news.find((item) => item.id === selectedId) ?? null : null;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setLoadError('');
+    fetchNewsOverview(controller.signal, reloadToken > 0)
+      .then((overview) => {
+        setNews(overview.items);
+        setQuickNow(overview.quick);
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setLoadError(error instanceof Error ? error.message : 'Не удалось загрузить новости.');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [reloadToken]);
 
   useEffect(() => {
     const handlePopState = () => setSelectedId(getNewsIdFromPath());
@@ -387,7 +453,7 @@ export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps)
     });
   }, [selectedId]);
 
-  const openArticle = (item: DemoNewsItem) => {
+  const openArticle = (item: NewsArticle) => {
     feedScrollTopRef.current = newsViewportRef.current?.scrollTop ?? 0;
     setSelectedId(item.id);
     window.history.pushState(null, '', `/news/${encodeURIComponent(item.id)}`);
@@ -398,13 +464,13 @@ export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps)
     if (window.location.pathname.startsWith('/news/')) window.history.replaceState(null, '', '/news');
   };
 
-  const toggleSaved = (item: DemoNewsItem) => {
+  const toggleSaved = (item: NewsArticle) => {
     setSavedIds((current) => (current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id]));
   };
 
   const filteredNews = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase('ru-RU');
-    return demoNews
+    return news
       .filter((item) => {
         const matchesTab = activeTab === 'Последние' || activeTab === 'Главное' ? true : item.recommended;
         const matchesQuery = !normalizedQuery || [item.title, item.summary, item.source, item.city, item.region, item.category].some((value) => value.toLocaleLowerCase('ru-RU').includes(normalizedQuery));
@@ -421,15 +487,17 @@ export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps)
         if (importanceScore[left.importance] !== importanceScore[right.importance]) return importanceScore[right.importance] - importanceScore[left.importance];
         return new Date(right.publishedAt).getTime() - new Date(left.publishedAt).getTime();
       });
-  }, [activeTab, category, city, importance, officialOnly, query, region]);
+  }, [activeTab, category, city, importance, news, officialOnly, query, region]);
 
-  const cityOptions = useMemo(() => ['Все города', ...new Set(demoNews.map((item) => item.city))], []);
+  const categoryOptions = useMemo(() => ['Все', ...new Set(news.map((item) => item.category))], [news]);
+  const regionOptions = useMemo(() => ['Все регионы', ...new Set(news.map((item) => item.region))], [news]);
+  const cityOptions = useMemo(() => ['Все города', ...new Set(news.map((item) => item.city))], [news]);
 
-  const hero = filteredNews[0] ?? demoNews[0];
+  const hero = filteredNews[0] ?? null;
   const secondary = filteredNews.slice(1, 3);
-  const headlineIds = new Set([hero.id, ...secondary.map((item) => item.id)]);
+  const headlineIds = new Set([hero?.id, ...secondary.map((item) => item.id)].filter(Boolean));
   const feed = filteredNews.filter((item) => !headlineIds.has(item.id)).slice(0, 6);
-  const missNews = demoNews.filter((item) => !headlineIds.has(item.id)).slice(0, 5);
+  const missNews = news.filter((item) => !headlineIds.has(item.id)).slice(0, 5);
   const selectionCount = filteredNews.length;
 
   const resetFilters = () => {
@@ -447,6 +515,7 @@ export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps)
     return (
       <NewsArticleView
         item={selected}
+        items={news}
         theme={theme}
         onToggleTheme={onToggleTheme}
         onBack={closeArticle}
@@ -517,7 +586,7 @@ export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps)
               label="Категория"
               value={category}
               displayValue={category === 'Все' ? 'Категория' : category}
-              options={demoNewsCategories}
+              options={categoryOptions}
               openFilter={openFilter}
               onToggle={(filterKey) => { setMoreOpen(false); setOpenFilter((current) => current === filterKey ? null : filterKey); }}
               onSelect={(value) => { setCategory(value); setOpenFilter(null); }}
@@ -527,7 +596,7 @@ export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps)
               label="Регион"
               value={region}
               displayValue={region === 'Все регионы' ? 'Согдийская обл.' : region}
-              options={demoNewsRegions}
+              options={regionOptions}
               openFilter={openFilter}
               onToggle={(filterKey) => { setMoreOpen(false); setOpenFilter((current) => current === filterKey ? null : filterKey); }}
               onSelect={(value) => { setRegion(value); setOpenFilter(null); }}
@@ -546,11 +615,11 @@ export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps)
               filterKey="importance"
               label="Важность"
               value={importance}
-              displayValue={importance === 'all' ? 'Важность' : demoNewsImportanceOptions.find((option) => option.value === importance)?.label ?? 'Важность'}
-              options={demoNewsImportanceOptions.map((option) => option.value)}
+              displayValue={importance === 'all' ? 'Важность' : importanceOptions.find((option) => option.value === importance)?.label ?? 'Важность'}
+              options={importanceOptions.map((option) => option.value)}
               openFilter={openFilter}
               onToggle={(filterKey) => { setMoreOpen(false); setOpenFilter((current) => current === filterKey ? null : filterKey); }}
-              onSelect={(value) => { setImportance(value as DemoNewsImportance | 'all'); setOpenFilter(null); }}
+              onSelect={(value) => { setImportance(value as NewsArticleImportance | 'all'); setOpenFilter(null); }}
             />
             <button type="button" class={`news-filter-chip${officialOnly ? ' is-selected' : ''}`} onClick={() => { setOpenFilter(null); setOfficialOnly((value) => !value); }}>
               <ShieldCheckIcon size={15} />
@@ -586,25 +655,34 @@ export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps)
                     <span class="news-eyebrow">Обновляется каждые 5 минут</span>
                     <h1 id="news-now-title">Сейчас главное</h1>
                   </div>
-                  <span class="news-demo-label">DEMO-ДАННЫЕ</span>
+                  {loading && <span class="news-live-status">Обновление…</span>}
                 </div>
-                <button type="button" class="news-hero-card" onClick={() => openArticle(hero)}>
-                  <NewsImage item={hero} className="news-hero-image" />
-                  <span class="news-hero-scrim" aria-hidden="true" />
-                  <span class="news-hero-copy">
-                    <span class="news-hero-topline">
-                      <span>{hero.isUrgent ? 'ОПЕРАТИВНО' : 'РЕКОМЕНДОВАНО'}</span>
-                      <ImportanceBadge item={hero} />
+                {hero ? (
+                  <button type="button" class="news-hero-card" onClick={() => openArticle(hero)}>
+                    <NewsImage item={hero} className="news-hero-image" />
+                    <span class="news-hero-scrim" aria-hidden="true" />
+                    <span class="news-hero-copy">
+                      <span class="news-hero-topline">
+                        <span>{hero.isUrgent ? 'ОПЕРАТИВНО' : 'РЕКОМЕНДОВАНО'}</span>
+                        <ImportanceBadge item={hero} />
+                      </span>
+                      <strong>{hero.title}</strong>
+                      <span class="news-hero-meta">
+                        <span>{hero.source}</span>
+                        <span>•</span>
+                        <span>{formatRelative(hero.publishedAt)}</span>
+                      </span>
                     </span>
-                    <strong>{hero.title}</strong>
-                    <span class="news-hero-meta">
-                      <span>{hero.source}</span>
-                      <span>•</span>
-                      <span>{formatRelative(hero.publishedAt)}</span>
-                    </span>
-                  </span>
-                  <ArrowRightIcon size={19} class="news-hero-arrow" />
-                </button>
+                    <ArrowRightIcon size={19} class="news-hero-arrow" />
+                  </button>
+                ) : (
+                  <div class="news-empty-card news-headline-empty">
+                    <NewspaperIcon size={28} />
+                    <strong>{loading ? 'Загружаем свежие новости…' : loadError ? 'Новости временно недоступны' : 'Нет данных'}</strong>
+                    <span>{loadError || (!loading ? 'Официальные источники пока не вернули публикации.' : '')}</span>
+                    {loadError && <button type="button" class="news-outline-button" onClick={() => setReloadToken((value) => value + 1)}>Повторить</button>}
+                  </div>
+                )}
               </div>
 
               <div class="news-secondary-headlines" aria-label="Другие важные новости">
@@ -631,16 +709,17 @@ export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps)
                   <h2 id="quick-now-title">Коротко сейчас</h2>
                 </div>
               </div>
-              <div class="news-quick-grid">
+              <div class={`news-quick-grid count-${Math.min(quickNow.length, 6)}`}>
                 {quickNow.map((item) => (
-                  <article class={`news-quick-card is-${item.tone}`} key={item.title}>
-                    <span class="news-quick-icon">{item.icon}</span>
+                  <article class={`news-quick-card is-${item.tone}`} key={item.id}>
+                    <span class="news-quick-icon"><QuickIcon item={item} /></span>
                     <strong>{item.title}</strong>
                     <b>{item.value}</b>
                     <span>{item.detail}</span>
-                    <small>{item.meta}</small>
+                    <small>{formatRelative(item.meta)}</small>
                   </article>
                 ))}
+                {!loading && !quickNow.length && <div class="news-quick-empty">Нет данных</div>}
               </div>
             </section>
           </section>
@@ -653,7 +732,7 @@ export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps)
                 </div>
                 <span class="news-feed-count">{selectionCount} материалов</span>
               </div>
-              <div class="news-feed-list" role="feed" aria-busy="false">
+              <div class="news-feed-list" role="feed" aria-busy={loading}>
                 {feed.map((item) => (
                   <article class={`news-feed-card ${importanceMeta[item.importance].className}`} key={item.id}>
                     <button type="button" class="news-feed-main" onClick={() => openArticle(item)}>
@@ -686,15 +765,16 @@ export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps)
                 {!feed.length && (
                   <div class="news-empty-card">
                     <NewspaperIcon size={28} />
-                    <strong>По этим фильтрам новостей нет</strong>
-                    <span>Сбросьте фильтры или попробуйте другой запрос.</span>
-                    <button type="button" class="news-outline-button" onClick={resetFilters}>Сбросить фильтры</button>
+                    <strong>{loading ? 'Загрузка…' : news.length ? 'По этим фильтрам новостей нет' : 'Нет данных'}</strong>
+                    <span>{loadError || (news.length ? 'Сбросьте фильтры или попробуйте другой запрос.' : 'Официальные источники пока не вернули материалы.')}</span>
+                    {news.length > 0 && <button type="button" class="news-outline-button" onClick={resetFilters}>Сбросить фильтры</button>}
+                    {loadError && <button type="button" class="news-outline-button" onClick={() => setReloadToken((value) => value + 1)}>Повторить</button>}
                   </div>
                 )}
               </div>
           </section>
 
-          <section class="news-miss-section" aria-labelledby="news-miss-title">
+          {missNews.length > 0 && <section class="news-miss-section" aria-labelledby="news-miss-title">
             <div class="news-section-heading compact">
               <div>
                 <span class="news-eyebrow">Подборка редакции</span>
@@ -713,7 +793,7 @@ export function NewsPage({ theme, onToggleTheme, onNavigateMap }: NewsPageProps)
                 </button>
               ))}
             </div>
-          </section>
+          </section>}
         </main>
       </div>
 

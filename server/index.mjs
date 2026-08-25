@@ -10,6 +10,8 @@ import { contentDelta, parseOpenAiSse, resolveChatCompletionsUrl } from './lib/o
 import { locationSummaryFallback, locationSummaryMessages, normalizeLocationSummaryRequest } from './lib/location-summary.mjs';
 import { canonicalPlaceContext, normalizeResearchPeriod, placeResearchFallback, placeResearchMessages, relatedLocationNews, researchSourceItems, searchPlaceWithExa } from './lib/place-research.mjs';
 import { loadSupabaseMonitorCache } from './lib/supabase-cache.mjs';
+import { hydrateArticleImages } from './lib/article-images.mjs';
+import { buildNewsOverview } from './lib/news-overview.mjs';
 import { executeChatTool, getToolsForModes } from './lib/chat-tools.mjs';
 import {
   buildToolNarration,
@@ -52,18 +54,14 @@ const resolveGeolocation = createAiGeolocationResolver({
 const cache = { expiresAt: 0, items: [], statuses: [], weather: { alerts: [], forecasts: [] }, rates: [] };
 const placeResearchRate = new Map();
 
-const demoItems = [
-  { id: 'demo-1', title: 'Монитор готов принимать официальные новости', description: 'После подключения к сети сервер автоматически загрузит свежие публикации выбранных ведомств.', sourceId: 'system', sourceName: 'Tajikistan Monitor', category: 'Система', publishedAt: new Date().toISOString(), severity: 'normal', url: '' },
-  { id: 'demo-2', title: 'Источники ограничены территорией Таджикистана', description: 'В каркасе нет глобальных военных, биржевых, морских или рекламных модулей.', sourceId: 'system', sourceName: 'Tajikistan Monitor', category: 'Система', publishedAt: new Date(Date.now() - 300000).toISOString(), severity: 'normal', url: '' },
-];
-
 async function loadNews(force = false) {
   if (!force && cache.expiresAt > Date.now()) return cache;
   try {
     const persisted = await loadSupabaseMonitorCache();
     if (persisted) {
       const locatedItems = persisted.items.map((item) => item.locations?.length ? item : geolocate(item));
-      cache.items = (await Promise.all(locatedItems.map(resolveGeolocation))).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+      const resolvedItems = (await Promise.all(locatedItems.map(resolveGeolocation))).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+      cache.items = await hydrateArticleImages(resolvedItems, sources);
       cache.statuses = persisted.statuses;
       cache.weather = persisted.weather;
       cache.rates = persisted.rates;
@@ -91,8 +89,9 @@ async function loadNews(force = false) {
     const degraded = result.reason?.code === 'ADAPTER_CONTRACT';
     return { id: source.id, name: source.name, status: degraded ? 'degraded' : 'offline', count: 0, checkedAt: new Date().toISOString(), error: result.reason instanceof Error ? result.reason.message : 'Ошибка источника' };
   });
-  const locatedItems = (items.length ? items : demoItems).map(geolocate);
-  cache.items = (await Promise.all(locatedItems.map(resolveGeolocation))).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+  const locatedItems = items.map(geolocate);
+  const resolvedItems = (await Promise.all(locatedItems.map(resolveGeolocation))).sort((a, b) => Date.parse(b.publishedAt) - Date.parse(a.publishedAt));
+  cache.items = await hydrateArticleImages(resolvedItems, sources);
   cache.statuses = statuses;
   cache.weather = weather;
   cache.rates = rates;
@@ -126,18 +125,14 @@ async function explainNews(req, res) {
   const title = String(body.title || '').slice(0, 500);
   const description = String(body.description || '').slice(0, 3000);
   const question = String(body.question || 'Объясни эту новость простыми словами').slice(0, 500);
+  if (!process.env.OPENAI_API_KEY) return json(res, 503, { error: 'ИИ-провайдер не настроен на сервере.' });
   return streamAiResponse(res, [
     { role: 'system', content: 'Ты аналитик новостей Таджикистана. Отвечай простым русским языком, отделяй факты от предположений и не выдумывай детали. Форматируй ответ аккуратным Markdown: короткие разделы, абзацы и списки только когда они полезны.' },
     { role: 'user', content: `Заголовок: ${title}\nОписание: ${description}\nВопрос: ${question}` },
-  ], `Простыми словами: «${title}». ${description || 'В публикации пока нет подробного описания.'} Для полноценного анализа добавьте OPENAI_API_KEY в .env.`);
+  ]);
 }
 
-async function streamAiResponse(res, messages, fallback) {
-  if (!process.env.OPENAI_API_KEY) {
-    res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
-    return res.end(fallback);
-  }
-
+async function streamAiResponse(res, messages) {
   const abortController = new AbortController();
   const timeout = setTimeout(() => abortController.abort(new Error('AI provider timeout')), 120_000);
   res.once('close', () => abortController.abort());
@@ -1102,6 +1097,10 @@ createServer(async (req, res) => {
     if (url.pathname === '/api/news' && req.method === 'GET') {
       const data = await loadNews(url.searchParams.get('refresh') === '1');
       return json(res, 200, { items: data.items, updatedAt: new Date().toISOString() });
+    }
+    if (url.pathname === '/api/news-overview' && req.method === 'GET') {
+      const data = await loadNews(url.searchParams.get('refresh') === '1');
+      return json(res, 200, buildNewsOverview(data));
     }
     if (url.pathname === '/api/status' && req.method === 'GET') {
       const data = await loadNews();

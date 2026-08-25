@@ -8881,6 +8881,197 @@ h1#news-detail-title { margin-top: 26px; font-size: clamp(30px, 3vw, 46px); line
   }
 }
 
+.news-image-unavailable {
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 30% 25%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 42%),
+    var(--news-surface-soft);
+  color: var(--news-muted);
+}
+
+.news-live-status {
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.news-headline-empty {
+  min-height: 300px;
+  justify-content: center;
+  border: 1px solid var(--news-border);
+  border-radius: var(--radius-lg);
+  background: var(--news-surface);
+}
+
+.news-quick-empty {
+  grid-column: 1 / -1;
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--news-border);
+  border-radius: var(--radius-md);
+  color: var(--news-muted);
+  background: var(--news-surface);
+}
+
+.news-ai-error {
+  color: var(--danger);
+}
+
+/* Real source text is not editorially shortened on the client. Keep the
+   visual hierarchy stable when an official title or quick fact is long. */
+@media (min-width: 769px) {
+  .news-hero-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    overflow: hidden;
+    padding: 22px 70px 22px 22px;
+  }
+
+  .news-hero-copy strong {
+    display: -webkit-box;
+    max-width: min(32ch, 100%);
+    max-height: calc(1.18em * 3);
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-height: 1.18;
+    overflow-wrap: anywhere;
+  }
+
+  .news-secondary-card {
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .news-secondary-copy {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .news-secondary-copy strong {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow-wrap: anywhere;
+  }
+
+  .news-secondary-icon {
+    margin-left: auto;
+  }
+
+  .news-quick-grid.count-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+  .news-quick-grid.count-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .news-quick-grid.count-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .news-quick-grid.count-4 { grid-template-columns: repeat(4, minmax(150px, 1fr)); }
+  .news-quick-grid.count-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .news-quick-grid.count-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.news-quick-card {
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.news-quick-card > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.news-quick-card b {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-height: 1.2;
+}
+
+.news-quick-card > span:not(.news-quick-icon) {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-height: 1.45;
+}
+
+@media (max-width: 768px) {
+  .news-hero-copy {
+    overflow: hidden;
+    padding-right: 58px;
+  }
+
+  .news-hero-copy strong {
+    display: -webkit-box;
+    max-height: calc(1.18em * 4);
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    overflow-wrap: anywhere;
+  }
+
+  .news-secondary-card {
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .news-secondary-copy {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .news-secondary-copy strong {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow-wrap: anywhere;
+  }
+
+  /* Keep quick facts readable on narrow screens. Cards are a deliberate
+     horizontal rail, but each item keeps a stable width instead of shrinking
+     to the text content and creating cramped one-word columns. */
+  .news-quick-card {
+    flex: 0 0 min(196px, calc(100vw - 52px));
+    min-width: 168px;
+  }
+}
+
+@media (min-width: 1201px) {
+  /* The desktop headline row is a single visual band. Let the quick-fact
+     cards use the same vertical rhythm as the hero/secondary column instead
+     of leaving an empty pocket beneath short values. */
+  .news-quick-now {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+  }
+
+  .news-quick-grid {
+    flex: 1 1 auto;
+    align-content: stretch;
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  .news-quick-card {
+    height: 100%;
+    min-height: 0;
+  }
+
+  .news-quick-card small {
+    margin-top: auto;
+  }
+}
+
 /* ==========================================================================
    Refined Compact Pills & Chat Toolbar Buttons
    ========================================================================== */

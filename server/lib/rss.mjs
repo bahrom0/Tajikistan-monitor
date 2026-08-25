@@ -13,6 +13,33 @@ const field = (xml, names) => {
   return '';
 };
 
+const rawField = (xml, names) => {
+  for (const name of names) {
+    const match = xml.match(new RegExp(`<${name}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${name}>`, 'i'));
+    if (match) return match[1].replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1');
+  }
+  return '';
+};
+
+const safeImageUrl = (value, baseUrl) => {
+  if (!String(value || '').trim()) return '';
+  try {
+    const url = new URL(value, baseUrl);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+};
+
+const imageFromFeedItem = (body, baseUrl) => {
+  const tag = body.match(/<(?:media:content|media:thumbnail|enclosure)\b[^>]*(?:url|href)=["']([^"']+)["'][^>]*>/i);
+  const tagged = safeImageUrl(tag?.[1] || '', baseUrl);
+  if (tagged) return tagged;
+  const rawContent = rawField(body, ['content:encoded', 'content', 'description', 'summary']);
+  const image = rawContent.match(/<img\b[^>]*(?:data-src|data-lazy-src|src)=["']([^"']+)["'][^>]*>/i)?.[1] || '';
+  return safeImageUrl(image, baseUrl);
+};
+
 const link = (xml) => {
   const simple = field(xml, ['link']);
   if (simple.startsWith('http')) return simple;
@@ -27,6 +54,7 @@ export function parseFeed(xml, source) {
     const publishedAt = field(body, ['pubDate', 'published', 'updated']);
     const description = field(body, ['description', 'summary', 'content:encoded', 'content']);
     const url = link(body);
+    const imageUrl = imageFromFeedItem(body, url || source.url);
     return {
       id: `${source.id}-${publishedAt || index}-${title}`,
       title,
@@ -37,6 +65,8 @@ export function parseFeed(xml, source) {
       category: source.kind,
       publishedAt: Number.isNaN(Date.parse(publishedAt)) ? new Date().toISOString() : new Date(publishedAt).toISOString(),
       severity: /авари|землетр|сел|опас|чрезвыч|ҳалокат/i.test(`${title} ${description}`) ? 'alert' : 'normal',
+      imageUrl,
+      imageAlt: title,
     };
   });
 }
