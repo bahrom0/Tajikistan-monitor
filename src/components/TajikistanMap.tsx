@@ -259,7 +259,6 @@ type MapViewState = {
 const regions = locations.filter((location) => location.type === 'region');
 const districts = locations.filter((location) => location.type === 'district');
 const pointLocations: LocationPoint[] = cities;
-const dushanbeCity = pointLocations.find((location) => location.id === 'city-dushanbe');
 const locationById = new Map<string, CanonicalLocation>(locations.map((location) => [location.id, location]));
 const MAJOR_CITIES = new Set([
   'city-dushanbe',
@@ -684,8 +683,8 @@ export function TajikistanMap({
       const isSelected = state.selectedLocationId === location.id;
       const alertMatch = !alertLocationIds
         || alertLocationIds.has(location.id)
-        || (location.region_id && alertLocationIds.has(location.region_id))
-        || (location.district_id && alertLocationIds.has(location.district_id));
+        || Boolean(location.region_id && alertLocationIds.has(location.region_id))
+        || Boolean(location.district_id && alertLocationIds.has(location.district_id));
       const hierarchyMatch = isInHierarchy(location, state.regionId, state.districtId);
       const visible = state.showCities && (zoom >= visibilityZoom || isSelected) && hierarchyMatch && alertMatch;
 

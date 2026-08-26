@@ -3657,6 +3657,12 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 }
 
 @media (max-width: 768px) {
+  :root {
+    /* Keep the scrollable app area above the fixed bottom navigation on
+       Android browsers, including devices with a gesture/navigation inset. */
+    --mobile-bottom-nav-height: calc(64px + env(safe-area-inset-bottom, 0px));
+  }
+
   html, body {
     overflow: hidden;
     height: 100%;
@@ -3666,8 +3672,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .app-shell {
     display: flex;
     flex-direction: column;
-    height: 100dvh;
     height: 100vh;
+    height: 100dvh;
     overflow: hidden;
     padding-bottom: 0;
   }
@@ -3681,12 +3687,12 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     flex-direction: column;
     flex: 1;
     min-height: 0;
-    height: calc(100dvh - 64px);
-    height: calc(100vh - 64px);
+    height: calc(100vh - var(--mobile-bottom-nav-height));
+    height: calc(100dvh - var(--mobile-bottom-nav-height));
     padding: 6px 8px 8px;
     gap: 6px;
     overflow: hidden;
-    margin-bottom: 64px;
+    margin-bottom: var(--mobile-bottom-nav-height);
     box-sizing: border-box;
   }
 
@@ -3845,7 +3851,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     bottom: 0;
     left: 0;
     right: 0;
-    height: 64px;
+    height: var(--mobile-bottom-nav-height);
     background: var(--bg-surface);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
@@ -3853,7 +3859,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     display: flex;
     align-items: center;
     justify-content: space-around;
-    padding: 0 8px 4px;
+    padding: 0 8px calc(4px + env(safe-area-inset-bottom, 0px));
     z-index: 100;
   }
 
@@ -6263,8 +6269,8 @@ button:focus-visible, input:focus-visible, select:focus-visible {
     width: min(300px, calc(100vw - 16px)) !important;
     max-width: calc(100vw - 16px);
     min-width: 0;
-    height: 100dvh;
     height: 100vh;
+    height: 100dvh;
     border-radius: 0 var(--radius-xl) var(--radius-xl) 0;
     background: var(--bg-surface);
     box-shadow: 0 0 32px rgba(0, 0, 0, 0.7);
@@ -6383,7 +6389,7 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
   .chat-footer-composer-area {
     flex-shrink: 0;
-    padding: 0 8px 8px;
+    padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0px));
     background: transparent;
     border: none;
     z-index: 15;
@@ -8495,7 +8501,7 @@ align-items: center;
   min-width: 0;
 }
 
-.news-secondary-headlines { padding-top: 35px; min-width: 0; gap: 12px; }
+.news-secondary-headlines { padding-top: 52px; min-width: 0; gap: 12px; }
 .news-secondary-card { height: calc((100% - 12px) / 2); min-height: 0; }
 
 .news-quick-now { margin-top: 0; min-width: 0; }
@@ -9070,6 +9076,12 @@ h1#news-detail-title { margin-top: 26px; font-size: clamp(30px, 3vw, 46px); line
   .news-quick-card small {
     margin-top: auto;
   }
+}
+
+/* Feed headings share the image's inset, not the outer section edge. */
+.news-feed-section > .news-section-heading {
+  margin-left: 14px;
+  margin-right: 14px;
 }
 
 /* ==========================================================================

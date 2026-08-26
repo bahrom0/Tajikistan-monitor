@@ -9,7 +9,6 @@ import { chatService } from './lib/chat-service';
 import {
   SunIcon,
   MoonIcon,
-  RefreshIcon,
   SparklesIcon,
   SearchIcon,
   NewspaperIcon,
