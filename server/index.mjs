@@ -1082,7 +1082,7 @@ async function serveStatic(url, res) {
 // HTTP ROUTER
 // --------------------------------------------------------------------------
 
-createServer(async (req, res) => {
+export async function handleRequest(req, res) {
   try {
     const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
     const sessionId = String(req.headers['x-session-id'] || 'default-session').slice(0, 128);
@@ -1222,4 +1222,8 @@ createServer(async (req, res) => {
     if (res.headersSent || res.destroyed) return res.destroy();
     return json(res, 500, { error: error instanceof Error ? error.message : 'Внутренняя ошибка' });
   }
-}).listen(port, '127.0.0.1', () => console.log(`Tajikistan Monitor API: http://127.0.0.1:${port}`));
+}
+
+if (process.env.VERCEL !== '1') {
+  createServer(handleRequest).listen(port, '127.0.0.1', () => console.log(`Tajikistan Monitor API: http://127.0.0.1:${port}`));
+}
