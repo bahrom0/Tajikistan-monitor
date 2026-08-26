@@ -5,7 +5,7 @@
   "functions": {
     "api/index.mjs": {
       "maxDuration": 60,
-      "includeFiles": ["src/data/geography/**/*.json"]
+      "includeFiles": "src/data/geography/**/*.json"
     }
   },
   "rewrites": [
