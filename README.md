@@ -25,6 +25,16 @@ npm run dev
 Frontend: `http://127.0.0.1:5173`  
 Backend: `http://127.0.0.1:8787`
 
+## Deploy to Render
+
+В корне есть `render.yaml` для одного Render Web Service. Он собирает frontend, запускает тот же Node-сервер и проверяет `/api/health`. Render передаёт динамический `PORT`, а `HOST=0.0.0.0` позволяет внешнему proxy подключиться к процессу.
+
+1. В Render выберите **New → Blueprint** и подключите репозиторий с этим `render.yaml`.
+2. При синхронизации Blueprint заполните только нужные серверные secrets: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`, `EXA_API_KEY`.
+3. После деплоя проверьте `https://<service>.onrender.com/api/health`, затем `/api/news` и `/api/status`.
+
+`SUPABASE_SERVICE_ROLE_KEY` и другие Vault/Edge Function secrets в Render добавлять не нужно: они не используются браузером и относятся к Supabase worker.
+
 Для AI скопируйте `.env.example` в `.env` и заполните серверные переменные. Ключ никогда не должен попадать во frontend.
 
 Кнопка в карточке города, посёлка, района или области запускает `/api/ai/place-research`. Сервер проверяет `locationId` по каноническому реестру, добавляет связанные официальные новости и выполняет свежий Exa Search за выбранные 7/30/90/365 дней. Для этого добавьте серверный `EXA_API_KEY` в `.env`. Браузер получает только поток этапов, найденные ссылки/favicon и токены ответа; ключ и сырой контекст Exa во frontend не отправляются.

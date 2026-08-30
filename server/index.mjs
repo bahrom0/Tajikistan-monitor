@@ -40,6 +40,7 @@ import {
 } from './lib/chat-persistence.mjs';
 
 const port = Number(process.env.PORT || 8787);
+const host = process.env.HOST || '0.0.0.0';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const locationDataset = JSON.parse(await readFile(join(root, 'src/data/geography/locations.json'), 'utf8'));
 const aliasDataset = JSON.parse(await readFile(join(root, 'src/data/geography/location-aliases.json'), 'utf8'));
@@ -1225,5 +1226,5 @@ export async function handleRequest(req, res) {
 }
 
 if (process.env.VERCEL !== '1') {
-  createServer(handleRequest).listen(port, '127.0.0.1', () => console.log(`Tajikistan Monitor API: http://127.0.0.1:${port}`));
+  createServer(handleRequest).listen(port, host, () => console.log(`Tajikistan Monitor API: http://${host}:${port}`));
 }
