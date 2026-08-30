@@ -1,4 +1,4 @@
-import { absoluteUrl, AdapterContractError, cleanText, fetchTextWithRetry, parseDate } from '../lib/html.mjs';
+import { absoluteUrl, AdapterContractError, cleanText, extractImageUrl, fetchTextWithRetry, parseDate } from '../lib/html.mjs';
 
 export function parseKchsHtml(html, source) {
   const articles = [...html.matchAll(/<article\b[^>]*class="[^"]*node-article[^"]*"[^>]*>([\s\S]*?)<\/article>/gi)];
@@ -11,7 +11,7 @@ export function parseKchsHtml(html, source) {
     const summary = body.match(/field-name-body[\s\S]*?<div\b[^>]*class="[^"]*field-item[^" ]*\s+even[^"]*"[^>]*>([\s\S]*?)<\/div>/i)?.[1] || '';
     const description = cleanText(summary).slice(0, 500);
     const url = absoluteUrl(heading[1], source.url);
-    return [{ id: `${source.id}-${url}`, title, description, url, sourceId: source.id, sourceName: source.name, category: 'ЧС', publishedAt: parseDate(date), severity: /опас|угроз|авари|сел|лавин|землетр|пожар|спас|утоп|чрезвыч|ҳалокат/i.test(`${title} ${description}`) ? 'alert' : 'normal' }];
+    return [{ id: `${source.id}-${url}`, title, description, url, sourceId: source.id, sourceName: source.name, category: 'ЧС', publishedAt: parseDate(date), severity: /опас|угроз|авари|сел|лавин|землетр|пожар|спас|утоп|чрезвыч|ҳалокат/i.test(`${title} ${description}`) ? 'alert' : 'normal', imageUrl: extractImageUrl(body, url || source.url), imageAlt: title }];
   });
   if (!items.length) throw new AdapterContractError('KCHS article selectors returned no items');
   return { items };

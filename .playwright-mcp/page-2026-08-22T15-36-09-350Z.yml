@@ -1,0 +1,41 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img "Tajikistan Monitor Logo" [ref=e7]
+        - generic [ref=e8]:
+          - strong [ref=e9]: Tajikistan Monitor
+          - generic [ref=e10]: Национальная информационная платформа
+      - generic [ref=e11]:
+        - group "Интихоби забон / Выбор языка" [ref=e12]:
+          - button "RU" [ref=e13] [cursor=pointer]
+          - button "TJ" [ref=e14] [cursor=pointer]
+        - button "Смена темы" [ref=e15] [cursor=pointer]
+        - button "В монитор" [ref=e22] [cursor=pointer]
+  - main [ref=e26]:
+    - generic [ref=e27]:
+      - generic [ref=e28]: Официальный монитор Таджикистана
+      - heading "Единый монитор событий и официальных новостей Таджикистана" [level=1] [ref=e31]
+      - paragraph [ref=e32]: Верифицированные сводки государственных ведомств, интерактивная карта районов, оперативные предупреждения КЧС, температура воздуха и финансовая статистика в реальном времени.
+      - button "Перейти к монитору" [ref=e34] [cursor=pointer]
+    - generic [ref=e38]:
+      - generic [ref=e39]:
+        - heading "Ключевые возможности платформы" [level=2] [ref=e40]
+        - paragraph [ref=e41]: Разработано по принципам точности, чистоты данных и уважения к пользователю.
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - heading "Только ведомственные первоисточники" [level=3] [ref=e48]
+          - paragraph [ref=e49]: Прямая агрегация новостей НИАТ «Ховар», КЧС Таджикистана, Агентства статистики, Гидрометцентра и Нацбанка (НБТ). Без слухов, фейков и кликбейта.
+        - generic [ref=e50]:
+          - heading "Умная карта 5 регионов и 68 районов" [level=3] [ref=e55]
+          - paragraph [ref=e56]: Иерархическое масштабирование городов и сёл без нагромождения надписей. Автоматический фокус на очагах предупреждений и границы OpenStreetMap.
+        - generic [ref=e57]:
+          - heading "Фактический ИИ-анализ первоисточников" [level=3] [ref=e61]
+          - paragraph [ref=e62]: Искусственный интеллект генерирует краткие выжимки строго по тексту официальных сообщений с прозрачными ссылками на первоисточники.
+        - generic [ref=e63]:
+          - heading "100% Приватность и без рекламы" [level=3] [ref=e68]
+          - paragraph [ref=e69]: Никаких рекламных трекеров, маркетинговых пикселей и навязчивых баннеров. Чистый независимый интерфейс для граждан и исследователей.
+  - contentinfo [ref=e70]:
+    - generic [ref=e71]:
+      - paragraph [ref=e72]: © 2026 Tajikistan Monitor · Все права защищены · Национальная панель мониторинга Таджикистана
+      - generic [ref=e73]: "Картографические данные: © OpenStreetMap contributors · ODbL"

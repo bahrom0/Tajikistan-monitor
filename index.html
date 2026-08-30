@@ -3,10 +3,211 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#07100f" />
+    <meta name="theme-color" content="#0A0A0C" />
     <meta name="description" content="Мониторинг событий и официальных новостей Таджикистана" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <title>Tajikistan Monitor</title>
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('tj_monitor_theme');
+          var theme = saved || (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+      })();
+    </script>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        background-color: #0a0a0d;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      html[data-theme="light"], html[data-theme="light"] body {
+        background-color: #ffffff;
+      }
+      #app-preloader,
+      .app-preloader-overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 999999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: #0a0a0d;
+        color: #ffffff;
+        opacity: 1;
+        visibility: visible;
+        transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      html[data-theme="light"] #app-preloader,
+      html[data-theme="light"] .app-preloader-overlay {
+        background-color: #ffffff;
+        color: #000000;
+      }
+      #app-preloader.preloader-hidden,
+      .app-preloader-overlay.preloader-hidden {
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+      .preloader-content {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        text-align: center;
+      }
+      .preloader-logo {
+        width: 144px;
+        height: 144px;
+        display: block;
+      }
+      .preloader-spinner {
+        width: 28px;
+        height: 28px;
+        display: block;
+      }
+      .preloader-offline-banner {
+        position: absolute;
+        top: calc(100% + 18px);
+        left: 50%;
+        transform: translateX(-50%);
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 6px 14px;
+        border-radius: 9999px;
+        font-size: 13px;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+        white-space: nowrap;
+        background-color: rgba(255, 159, 10, 0.14);
+        border: 1px solid rgba(255, 159, 10, 0.28);
+        color: #ff9f0a;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+      }
+      .preloader-offline-banner.is-visible {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(0);
+      }
+      html[data-theme="light"] .preloader-offline-banner {
+        background-color: rgba(255, 149, 0, 0.12);
+        border: 1px solid rgba(255, 149, 0, 0.25);
+        color: #c97700;
+      }
+      .preloader-offline-icon {
+        width: 15px;
+        height: 15px;
+        flex-shrink: 0;
+      }
+    </style>
   </head>
-  <body><div id="app"></div><script type="module" src="/src/main.tsx"></script></body>
+  <body>
+    <div id="app-preloader" aria-label="Загрузка Tajikistan Monitor" role="status">
+      <div class="preloader-content">
+        <svg class="preloader-logo" viewBox="0 0 1024 1024" role="img" aria-label="Tajikistan Monitor">
+          <defs>
+            <path id="preloader-tj" d="M 108.30 715.48 L 175.41 594.64 L 149.62 505.75 L 62.00 477.26 L 92.95 424.69 L 192.65 430.30 L 249.39 364.31 L 287.34 287.69 L 446.99 259.95 L 422.10 315.31 L 439.20 348.50 L 488.49 345.42 L 444.77 382.27 L 314.81 362.27 L 303.50 431.11 L 432.96 421.85 L 580.48 460.63 L 806.23 442.50 L 836.49 553.00 L 875.74 540.98 L 948.25 568.16 L 944.09 614.59 L 962.00 682.64 L 838.86 682.46 L 756.64 673.66 L 682.24 727.11 L 629.24 738.97 L 587.64 764.05 L 540.37 724.95 L 551.50 624.64 L 515.38 618.97 L 528.36 582.48 L 463.73 555.33 L 412.33 596.87 L 399.70 645.01 L 381.31 662.56 L 309.94 660.08 L 271.43 714.74 L 231.21 691.68 L 144.78 730.03 L 108.30 715.48 Z"/>
+            <clipPath id="preloader-top"><rect x="0" y="0" width="1024" height="499"/></clipPath>
+            <clipPath id="preloader-bottom"><rect x="0" y="525" width="1024" height="499"/></clipPath>
+          </defs>
+          <g fill="currentColor">
+            <use href="#preloader-tj" clip-path="url(#preloader-top)"/>
+            <use href="#preloader-tj" clip-path="url(#preloader-bottom)"/>
+          </g>
+        </svg>
+        <svg class="preloader-spinner" viewBox="0 0 40 40" fill="none" role="status" aria-label="Загрузка">
+          <g transform="translate(20 20)">
+            <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18">
+              <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0s" repeatCount="indefinite" />
+            </rect>
+            <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(30)">
+              <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.1s" repeatCount="indefinite" />
+            </rect>
+            <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(60)">
+              <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.2s" repeatCount="indefinite" />
+            </rect>
+            <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(90)">
+              <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.3s" repeatCount="indefinite" />
+            </rect>
+            <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(120)">
+              <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.4s" repeatCount="indefinite" />
+            </rect>
+            <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(150)">
+              <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.5s" repeatCount="indefinite" />
+            </rect>
+            <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(180)">
+              <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.6s" repeatCount="indefinite" />
+            </rect>
+            <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(210)">
+              <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.7s" repeatCount="indefinite" />
+            </rect>
+            <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(240)">
+              <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.8s" repeatCount="indefinite" />
+            </rect>
+            <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(270)">
+              <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="0.9s" repeatCount="indefinite" />
+            </rect>
+            <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(300)">
+              <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="1.0s" repeatCount="indefinite" />
+            </rect>
+            <rect x="-1.5" y="-16" width="3" height="8" rx="1.5" fill="currentColor" opacity="0.18" transform="rotate(330)">
+              <animate attributeName="opacity" values="1;0.18;0.18" dur="1.2s" begin="1.1s" repeatCount="indefinite" />
+            </rect>
+          </g>
+        </svg>
+        <div id="preloader-offline-banner" class="preloader-offline-banner">
+          <svg class="preloader-offline-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
+            <line x1="12" y1="9" x2="12" y2="13" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+          <span>Медленный интернет</span>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function() {
+        function checkStatus() {
+          var banner = document.getElementById('preloader-offline-banner');
+          if (banner) {
+            if (!navigator.onLine) {
+              banner.classList.add('is-visible');
+            } else {
+              banner.classList.remove('is-visible');
+            }
+          }
+        }
+        if (!navigator.onLine) {
+          checkStatus();
+        }
+        window.addEventListener('online', checkStatus);
+        window.addEventListener('offline', checkStatus);
+        setTimeout(function() {
+          var preloader = document.getElementById('app-preloader');
+          if (preloader && !preloader.classList.contains('preloader-hidden')) {
+            var banner = document.getElementById('preloader-offline-banner');
+            if (banner) banner.classList.add('is-visible');
+          }
+        }, 3500);
+      })();
+    </script>
+    <div id="app"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
-

@@ -1,4 +1,4 @@
-import { absoluteUrl, AdapterContractError, cleanText, fetchTextWithRetry, parseDate } from '../lib/html.mjs';
+import { absoluteUrl, AdapterContractError, cleanText, extractImageUrl, fetchTextWithRetry, parseDate } from '../lib/html.mjs';
 
 export function parseNbtNewsHtml(html, source) {
   const cards = [...html.matchAll(/<div\b[^>]*class="[^"]*card[^"]*"[^>]*data-filter="pr"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi)];
@@ -8,9 +8,10 @@ export function parseNbtNewsHtml(html, source) {
     if (!heading) return [];
     const url = absoluteUrl(heading[1], source.url);
     const title = cleanText(heading[2]);
+    if (!title) return [];
     const description = cleanText(body.match(/<p\b[^>]*class="[^"]*card-text[^"]*"[^>]*>([\s\S]*?)<\/p>/i)?.[1] || '').slice(0, 500);
     const date = cleanText(body.match(/<div\b[^>]*class="[^"]*views[^"]*"[^>]*>([\s\S]*?)<\/div>/i)?.[1] || '');
-    return [{ id: `${source.id}-${url}`, title, description, url, sourceId: source.id, sourceName: source.name, category: 'Финансы', publishedAt: parseDate(date), severity: 'normal' }];
+    return [{ id: `${source.id}-${url}`, title, description, url, sourceId: source.id, sourceName: source.name, category: 'Финансы', publishedAt: parseDate(date), severity: 'normal', imageUrl: extractImageUrl(body, url || source.url), imageAlt: title }];
   });
   if (!items.length) throw new AdapterContractError('NBT news card selectors returned no items');
   return { items };

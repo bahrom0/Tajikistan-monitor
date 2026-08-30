@@ -1,5 +1,16 @@
 # Tajikistan Monitor UI rules
 
+## AI chat Markdown rendering
+
+- References: `codex-clipboard-be9c7f11-7efa-4644-a175-aecc88fae294.png` and `codex-clipboard-f2740b79-04d8-4cb7-8826-c80291c6b4ae.png`, supplied on 2026-08-21. The green annotations identify broken Markdown output; they are defect markup, not UI elements to reproduce.
+- Target: assistant messages in the chat route at desktop widths shown by the references and responsive widths down to `320px`. The existing light/dark chat composition and citation chips remain authoritative.
+- Typography: message copy is `14px/1.68` on desktop and `13.5px/1.68` below `640px`. Heading levels render from `19px` down to `13px`, with `600–700` weight and `1.35–1.45` line height. Paragraph and list rhythm is `12px`.
+- Tables: wrapper radius uses `--radius-md`, border uses `--border-medium`, spacing is `16px`, and the table has a `520px` desktop / `460px` mobile minimum width with native horizontal overflow. Headers use a 12% accent mix, cells use `10px 14px`, and even/hover rows use existing card tokens.
+- Parsing behavior: GFM-style tables accept optional outer pipes, alignment markers, escaped pipes and a missing trailing pipe. Fenced code and table rows bypass AI list-recovery heuristics. Standalone or joined ATX headings are recovered without exposing `###` markers. Raw HTML is never injected into the DOM.
+- States and accessibility: links keep visible keyboard focus, tables remain horizontally scrollable by keyboard/touch, and color is not used to replace text. Citation chips retain their existing labels and favicons.
+- Motion: table hover uses the existing immediate surface state; no content animation is added. Existing reduced-motion behavior is unchanged.
+- Intentional deviation: the screenshots show rendering defects rather than a desired visual redesign. Green arrows, circles and boxes are not reproduced; only Markdown structure, spacing and responsive presentation are corrected.
+
 ## Map popup and label fixes
 
 - References: the three user-supplied screenshots from 2026-08-15 showing an overflowing news popup, overlapping place/news popups, and crowded labels at country zoom.
@@ -69,3 +80,23 @@
 - Selection: the active city receives `#5fffc4` at `0.26` opacity with a `3.2px #8effd5` outline. Color remains redundant with the city popup, point marker and text label.
 - Responsive and motion: no panel layout or breakpoint changed. Existing `650ms` map focus motion is retained and becomes instantaneous under `prefers-reduced-motion`.
 - Data provenance: geometry comes from explicit OpenStreetMap relation IDs under ODbL 1.0; canonical Russian/Tajik names and hierarchy continue to come from `locations.json`.
+
+## News route and article detail
+
+- References: the three supplied Tajikistan Monitor news screenshots from 2026-08-23 (`codex-clipboard-be807975-f4c8-47af-ad46-43ace9458640.png`, `codex-clipboard-d701e25c-cc56-470e-b8cd-1667fa47a5a2.png`, `codex-clipboard-9730cb46-552c-49e3-9ada-e5082f9fd5d1.png`). The implemented route is `/news`; a selected item uses `/news/:id`.
+- Composition: the news viewport uses a bounded white/dark surface with 12-column desktop rhythm. The first row is a `7/12 + 5/12` split: a hero with two equal secondary cards on the left and five equal «Коротко сейчас» cards on the right. The removed «Что происходит рядом», «Официально» and «Популярно сейчас» modules leave no empty columns: the horizontal feed expands to the full content width, followed by «Не пропустите».
+- Tokens: 24px desktop canvas inset, 16px grid gaps, 14px card radius, 18px page radius, 42px filter controls, 146px feed cards, 220px feed images, 17px card titles, 17px article body at `1.72` line-height. Light/dark values reuse the existing `--bg-*`, `--text-*`, `--border-*` and accent tokens so the shell remains coherent with Map and Chat.
+- Route behavior: cards use an actual history URL and the article is rendered as a full page, never as a backdrop, dialog or body scroll lock. The detail screen includes source/date/updated metadata, image, importance, AI summary, «Почему показано», full demo body, source link and related news.
+- Data contract: `NewsPage` owns the presentation contract while the live overview API supplies source-backed articles and quick facts. Missing quick facts are omitted rather than replaced with invented content; an explicit «Нет данных» state is reserved for a requested value with no source response.
+- Responsive: desktop keeps the two-column editorial composition; tablet stacks the quick-summary row; below 768px the page becomes one column, feed images move above copy, quick cards use scroll-snap, and article context becomes a normal flow section. The app's mobile bottom navigation is accounted for in the news viewport height.
+- Content resilience: hero headlines clamp to three lines on desktop and four on mobile; secondary headlines clamp to three lines; source badges and icons stay inside their cards. Quick facts use equal count-aware desktop columns that fill the headline band and stable-width mobile cards, so long temperatures, emergency labels and economy values wrap without changing the surrounding rhythm.
+- Alignment: the secondary-card stack starts at the hero image's top edge and ends at its bottom edge; the feed heading uses the same 14px inset as the feed image on desktop and mobile.
+- Motion: page entry and article/AI reveal use a restrained 180–220ms transform/opacity transition. Card hover lifts by 2px without changing layout. Dropdowns use a 180ms `translateY(-6px) + scale(.98→1)` transition. All news motion is disabled or reduced under `prefers-reduced-motion`.
+- Accessibility: cards and controls keep visible focus, semantic headings, `time` elements, `aria-expanded` for AI, `aria-pressed` for saved state and text-plus-icon importance. Mobile controls retain 44px touch targets. The only intentional deviation from the reference is replacing its profile avatar with the product's existing theme control because this product has no user-profile flow.
+- Images: cards use only images extracted from the original source. When a source has no usable HTTP(S) image, a neutral fixed-size placeholder keeps the layout stable without presenting a synthetic photograph. Images retain `object-fit: cover`, descriptive alt text and a fixed aspect ratio to avoid layout shift.
+
+## Mobile chat viewport
+
+- The mobile shell uses the dynamic viewport (`100dvh`, with a `100vh` fallback) so Android browser chrome does not extend the content beneath the fixed navigation.
+- The bottom navigation reserves `64px + env(safe-area-inset-bottom)`; the main container uses the same value for its height and bottom margin. The chat composer adds the safe-area inset to its lower breathing room, keeping the textarea and actions above the navigation on narrow devices.
+- The responsive contract is checked at 360×800, 390×844 and 412×915 CSS pixels, with no horizontal overflow and a visible composer above the navigation.

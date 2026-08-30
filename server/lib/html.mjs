@@ -16,6 +16,48 @@ export const absoluteUrl = (value, baseUrl) => {
   try { return new URL(decodeHtml(value), baseUrl).toString(); } catch { return ''; }
 };
 
+const safeHttpUrl = (value, baseUrl) => {
+  if (!String(value || '').trim()) return '';
+  try {
+    const url = new URL(decodeHtml(value).trim(), baseUrl);
+    return url.protocol === 'http:' || url.protocol === 'https:' ? url.toString() : '';
+  } catch {
+    return '';
+  }
+};
+
+const attribute = (tag, name) => tag.match(new RegExp(`\\b${name}\\s*=\\s*["']([^"']+)["']`, 'i'))?.[1] || '';
+
+/**
+ * Extract an article image only from source-owned markup. The caller still
+ * controls which page may be fetched; this helper never performs network IO.
+ */
+export function extractImageUrl(html = '', baseUrl = '') {
+  const metaTags = [...html.matchAll(/<meta\b[^>]*>/gi)].map((match) => match[0]);
+  for (const tag of metaTags) {
+    const key = (attribute(tag, 'property') || attribute(tag, 'name')).toLowerCase();
+    if (!['og:image', 'og:image:url', 'twitter:image', 'twitter:image:src'].includes(key)) continue;
+    const url = safeHttpUrl(attribute(tag, 'content'), baseUrl);
+    if (url) return url;
+  }
+
+  const imageSource = html.match(/<link\b[^>]*rel=["'][^"']*image_src[^"']*["'][^>]*>/i)?.[0];
+  if (imageSource) {
+    const url = safeHttpUrl(attribute(imageSource, 'href'), baseUrl);
+    if (url) return url;
+  }
+
+  const imageTags = [...html.matchAll(/<img\b[^>]*>/gi)].map((match) => match[0]);
+  for (const tag of imageTags) {
+    if (/\b(?:logo|icon|avatar|spinner|loader|pixel|captcha|emoji)\b/i.test(tag)) continue;
+    const srcset = attribute(tag, 'srcset').split(',')[0]?.trim().split(/\s+/)[0] || '';
+    const candidate = attribute(tag, 'data-src') || attribute(tag, 'data-lazy-src') || attribute(tag, 'src') || srcset;
+    const url = safeHttpUrl(candidate, baseUrl);
+    if (url) return url;
+  }
+  return '';
+}
+
 export const parseDate = (value, fallback = new Date()) => {
   const text = cleanText(value);
   const match = text.match(/\b(\d{2})[./](\d{2})[./](\d{4})\b/);
