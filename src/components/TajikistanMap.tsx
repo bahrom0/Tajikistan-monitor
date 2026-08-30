@@ -30,6 +30,14 @@ type AdministrativeFeature = {
 };
 
 const administrativeFeatures = administrativeBoundaries.features as unknown as AdministrativeFeature[];
+const countryRoadClipGeometry = {
+  type: 'MultiPolygon' as const,
+  coordinates: administrativeFeatures
+    .filter((feature) => feature.properties?.location_type === 'region')
+    .flatMap((feature) => feature.geometry.type === 'Polygon'
+      ? [feature.geometry.coordinates]
+      : feature.geometry.coordinates),
+};
 
 export type ThemeMode = 'dark' | 'light';
 
@@ -994,6 +1002,16 @@ export function TajikistanMap({
             palette.defaultArea,
           ]);
         }
+        if (map.getLayer('osm-major-roads')) {
+          map.setPaintProperty('osm-major-roads', 'line-color', theme === 'light' ? '#8a8f98' : '#6f7784');
+        }
+        if (map.getLayer('osm-local-roads')) {
+          map.setPaintProperty('osm-local-roads', 'line-color', theme === 'light' ? '#aeb3bb' : '#4f5868');
+        }
+        if (map.getLayer('osm-street-labels')) {
+          map.setPaintProperty('osm-street-labels', 'text-color', theme === 'light' ? '#4d5663' : '#b8c0cc');
+          map.setPaintProperty('osm-street-labels', 'text-halo-color', theme === 'light' ? 'rgba(255,255,255,0.86)' : 'rgba(19,24,32,0.92)');
+        }
 
         administrativeLabelRegistryRef.current.forEach(({ element, type, locationId }) => {
           const feature = administrativeFeatures.find((f) => f.properties?.location_id === locationId);
@@ -1030,11 +1048,14 @@ export function TajikistanMap({
       center: INITIAL_MAP_CENTER,
       zoom: INITIAL_MAP_ZOOM,
       minZoom: 4.8,
-      maxZoom: 11,
+      // Street names need a closer view than the country-level map used before.
+      // Keep the extra range bounded so the main map remains the same at normal zoom.
+      maxZoom: 14,
       maxBounds: TAJIKISTAN_MAX_BOUNDS,
       style: {
         version: 8,
         sources: {},
+        glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
         layers: [{ id: 'background', type: 'background', paint: { 'background-color': initialPalette.bg } }],
       },
       attributionControl: false,
@@ -1086,6 +1107,63 @@ export function TajikistanMap({
       map.addLayer({ id: 'selected-city-fill', type: 'fill', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], paint: { 'fill-color': palette.selectedCityFill, 'fill-opacity': 0.22 } });
       map.addLayer({ id: 'selected-city-line', type: 'line', source: 'administrative', filter: ['==', ['get', 'location_id'], '__none__'], layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': palette.selectedCityLine, 'line-width': 2.8, 'line-opacity': 1 } });
       map.addLayer({ id: 'country-line', type: 'line', source: 'country-outline', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': palette.countryLine, 'line-width': ['interpolate', ['linear'], ['zoom'], 4.5, 2.0, 8, 3.0, 11, 4.0], 'line-opacity': 0.9 } });
+
+      // Optional cartographic context. This is deliberately independent from the
+      // canonical administrative/news data and only becomes visible when zoomed in.
+      map.addSource('osm-transportation', {
+        type: 'vector',
+        url: 'https://tiles.openfreemap.org/planet',
+      });
+      map.addLayer({
+        id: 'osm-major-roads',
+        type: 'line',
+        source: 'osm-transportation',
+        'source-layer': 'transportation',
+        minzoom: 7,
+        filter: ['all', ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false], ['within', countryRoadClipGeometry]],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': theme === 'light' ? '#8a8f98' : '#6f7784',
+          'line-opacity': ['interpolate', ['linear'], ['zoom'], 7, 0.28, 10, 0.55, 14, 0.72],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 7, 0.7, 10, 1.6, 14, 3.2],
+        },
+      });
+      map.addLayer({
+        id: 'osm-local-roads',
+        type: 'line',
+        source: 'osm-transportation',
+        'source-layer': 'transportation',
+        minzoom: 10.5,
+        filter: ['all', ['match', ['get', 'class'], ['tertiary', 'minor', 'residential', 'service'], true, false], ['within', countryRoadClipGeometry]],
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-color': theme === 'light' ? '#aeb3bb' : '#4f5868',
+          'line-opacity': ['interpolate', ['linear'], ['zoom'], 10.5, 0.18, 12, 0.38, 14, 0.62],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10.5, 0.45, 12, 0.85, 14, 1.8],
+        },
+      });
+      map.addLayer({
+        id: 'osm-street-labels',
+        type: 'symbol',
+        source: 'osm-transportation',
+        'source-layer': 'transportation_name',
+        minzoom: 12.5,
+        filter: ['within', countryRoadClipGeometry],
+        layout: {
+          'symbol-placement': 'line',
+          'symbol-spacing': 260,
+          'text-field': ['coalesce', ['get', 'name:ru'], ['get', 'name'], ['get', 'name:en']],
+          'text-font': ['Noto Sans Regular'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 12.5, 9, 14, 11],
+          'text-allow-overlap': false,
+          'text-ignore-placement': false,
+        },
+        paint: {
+          'text-color': theme === 'light' ? '#4d5663' : '#b8c0cc',
+          'text-halo-color': theme === 'light' ? 'rgba(255,255,255,0.86)' : 'rgba(19,24,32,0.92)',
+          'text-halo-width': 1.2,
+        },
+      });
 
       map.addSource('news-locations', { type: 'geojson', data: newsDataRef.current });
       map.addLayer({ id: 'news-location-points', type: 'circle', source: 'news-locations', minzoom: 5.8, paint: {
