@@ -8,6 +8,67 @@ export function resolveChatCompletionsUrl(value) {
   return url.toString();
 }
 
+export async function fetchOpenAiStream(requestBody, {
+  signal,
+  operation = 'ai',
+  fetchImpl = fetch,
+  apiKey = process.env.OPENAI_API_KEY,
+  baseUrl = process.env.OPENAI_BASE_URL,
+  region = process.env.VERCEL_REGION || 'local',
+  now = Date.now,
+  logger = console,
+} = {}) {
+  const url = resolveChatCompletionsUrl(baseUrl);
+  const startedAt = now();
+  const metadata = {
+    operation,
+    model: String(requestBody?.model || ''),
+    providerHost: new URL(url).hostname,
+    region,
+  };
+
+  try {
+    const response = await fetchImpl(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: 'text/event-stream',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+      signal,
+    });
+    const headersAt = now();
+    logger.info?.('ai_provider_headers', {
+      ...metadata,
+      status: response.status,
+      durationMs: headersAt - startedAt,
+    });
+
+    let firstEventSeen = false;
+    return {
+      response,
+      markFirstEvent() {
+        if (firstEventSeen) return;
+        firstEventSeen = true;
+        const firstEventAt = now();
+        logger.info?.('ai_provider_first_event', {
+          ...metadata,
+          durationMs: firstEventAt - startedAt,
+          afterHeadersMs: firstEventAt - headersAt,
+        });
+      },
+    };
+  } catch (error) {
+    logger.warn?.('ai_provider_request_failed', {
+      ...metadata,
+      durationMs: now() - startedAt,
+      message: error instanceof Error ? error.message : 'unknown',
+    });
+    throw error;
+  }
+}
+
 export async function* parseOpenAiSse(body) {
   const decoder = new TextDecoder();
   let buffer = '';

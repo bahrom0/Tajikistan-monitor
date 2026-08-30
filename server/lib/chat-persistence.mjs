@@ -10,6 +10,23 @@ const LOCAL_STORE_FILE = join(root, '.chat_store.json');
 const projectUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || '';
 
+export function shouldPersistChatLocally(env = process.env) {
+  if (env.VERCEL === '1') return false;
+  if (env.CHAT_LOCAL_PERSISTENCE === 'true') return true;
+  if (env.CHAT_LOCAL_PERSISTENCE === 'false') return false;
+  return true;
+}
+
+const localPersistenceEnabled = shouldPersistChatLocally();
+
+if (!localPersistenceEnabled && (!projectUrl || !serviceKey)) {
+  console.warn('chat_persistence_ephemeral', {
+    runtime: 'vercel',
+    missingSupabaseUrl: !projectUrl,
+    missingSupabaseKey: !serviceKey,
+  });
+}
+
 function normalizeStoredMessage(message) {
   const metadata = message?.metadata && typeof message.metadata === 'object' ? message.metadata : {};
   return {
@@ -32,6 +49,10 @@ let memoryStore = {
 
 async function initLocalStore() {
   if (memoryStore.loaded) return;
+  if (!localPersistenceEnabled) {
+    memoryStore.loaded = true;
+    return;
+  }
   try {
     const raw = await readFile(LOCAL_STORE_FILE, 'utf8');
     const parsed = JSON.parse(raw);
@@ -50,6 +71,7 @@ async function initLocalStore() {
 }
 
 async function persistLocalStore() {
+  if (!localPersistenceEnabled) return;
   try {
     const data = {
       conversations: Array.from(memoryStore.conversations.values()),

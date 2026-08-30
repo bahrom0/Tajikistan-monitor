@@ -25,6 +25,14 @@ npm run dev
 Frontend: `http://127.0.0.1:5173`  
 Backend: `http://127.0.0.1:8787`
 
+## Deploy to Vercel
+
+`vercel.json` собирает Vite-клиент и запускает Node API в регионе `hkg1`, ближе к целевой аудитории и AI-провайдеру. AI streaming использует Fluid Compute с лимитом 300 секунд; отключение клиента отменяет выполняющийся запрос.
+
+На Vercel файловая система приложения read-only, поэтому `.chat_store.json` там не используется. Для постоянной истории чата обязательно задайте `SUPABASE_URL` и `SUPABASE_PUBLISHABLE_KEY`; без них текущий диалог работает только в памяти конкретного прогретого экземпляра функции. IP для rate limit берётся из защищённого Vercel-заголовка `x-forwarded-for`, а не из `req.socket`.
+
+После preview-деплоя проверьте `/api/health`, `/api/status`, первый токен `/api/ai/chat` и `/api/ai/place-research`. В заголовке `x-vercel-id` последняя региональная часть должна соответствовать `hkg1`.
+
 ## Deploy to Render
 
 В корне есть `render.yaml` для одного Render Web Service. Он собирает frontend, запускает тот же Node-сервер и проверяет `/api/health`. Render передаёт динамический `PORT`, а `HOST=0.0.0.0` позволяет внешнему proxy подключиться к процессу.

@@ -6,12 +6,13 @@ import { fileURLToPath } from 'node:url';
 import { sources, referenceSources } from './config/sources.mjs';
 import { fetchSourceAdapter } from './adapters/index.mjs';
 import { createAiGeolocationResolver, createGeolocator } from './lib/geolocate.mjs';
-import { contentDelta, parseOpenAiSse, resolveChatCompletionsUrl } from './lib/openai-stream.mjs';
+import { contentDelta, fetchOpenAiStream, parseOpenAiSse } from './lib/openai-stream.mjs';
 import { locationSummaryFallback, locationSummaryMessages, normalizeLocationSummaryRequest } from './lib/location-summary.mjs';
 import { canonicalPlaceContext, normalizeResearchPeriod, placeResearchFallback, placeResearchMessages, relatedLocationNews, researchSourceItems, searchPlaceWithExa } from './lib/place-research.mjs';
 import { loadSupabaseMonitorCache } from './lib/supabase-cache.mjs';
 import { hydrateArticleImages } from './lib/article-images.mjs';
 import { buildNewsOverview } from './lib/news-overview.mjs';
+import { requestClientIp } from './lib/request-client.mjs';
 import { executeChatTool, getToolsForModes } from './lib/chat-tools.mjs';
 import {
   buildToolNarration,
@@ -138,13 +139,15 @@ async function streamAiResponse(res, messages) {
   const timeout = setTimeout(() => abortController.abort(new Error('AI provider timeout')), 120_000);
   res.once('close', () => abortController.abort());
   let response;
+  let providerStream;
   try {
-    response = await fetch(resolveChatCompletionsUrl(process.env.OPENAI_BASE_URL), {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, Accept: 'text/event-stream', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4.1-mini', temperature: 0.2, stream: true, messages }),
+    providerStream = await fetchOpenAiStream({
+      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini', temperature: 0.2, stream: true, messages,
+    }, {
       signal: abortController.signal,
+      operation: 'explain_news',
     });
+    response = providerStream.response;
   } catch (error) {
     clearTimeout(timeout);
     throw error;
@@ -169,6 +172,7 @@ async function streamAiResponse(res, messages) {
 
   try {
     for await (const payload of parseOpenAiSse(response.body)) {
+      providerStream.markFirstEvent();
       const token = contentDelta(payload);
       if (token && !res.write(token)) await once(res, 'drain');
     }
@@ -232,15 +236,17 @@ async function summarizeLocation(req, res) {
   const timeout = setTimeout(() => abortController.abort(new Error('AI provider timeout')), 120_000);
   res.once('close', () => abortController.abort());
   try {
-    const response = await fetch(resolveChatCompletionsUrl(process.env.OPENAI_BASE_URL), {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, Accept: 'text/event-stream', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4.1-mini', temperature: 0.2, stream: true, messages }),
+    const providerStream = await fetchOpenAiStream({
+      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini', temperature: 0.2, stream: true, messages,
+    }, {
       signal: abortController.signal,
+      operation: 'location_summary',
     });
+    const response = providerStream.response;
     if (!response.ok) throw new Error(`AI provider: HTTP ${response.status}`);
     if (!response.body) throw new Error('AI provider не вернул поток данных');
     for await (const payload of parseOpenAiSse(response.body)) {
+      providerStream.markFirstEvent();
       const token = contentDelta(payload);
       if (token && !writeNdjson(res, { type: 'token', value: token })) await once(res, 'drain');
     }
@@ -258,7 +264,7 @@ async function summarizeLocation(req, res) {
 }
 
 function allowPlaceResearch(req, locationId) {
-  const key = `${String(req.socket.remoteAddress || 'local')}:${locationId}`;
+  const key = `${requestClientIp(req)}:${locationId}`;
   const now = Date.now();
   const recent = (placeResearchRate.get(key) ?? []).filter((time) => now - time < 10 * 60_000);
   if (recent.length >= 8) return false;
@@ -318,15 +324,17 @@ async function researchPlace(req, res) {
   const timeout = setTimeout(() => abortController.abort(new Error('AI provider timeout')), 120_000);
   res.once('close', () => abortController.abort());
   try {
-    const response = await fetch(resolveChatCompletionsUrl(process.env.OPENAI_BASE_URL), {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, Accept: 'text/event-stream', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4.1-mini', temperature: 0.2, stream: true, messages }),
+    const providerStream = await fetchOpenAiStream({
+      model: process.env.OPENAI_MODEL || 'gpt-4.1-mini', temperature: 0.2, stream: true, messages,
+    }, {
       signal: abortController.signal,
+      operation: 'place_research',
     });
+    const response = providerStream.response;
     if (!response.ok) throw new Error(`AI provider: HTTP ${response.status}`);
     if (!response.body) throw new Error('AI provider не вернул поток данных');
     for await (const payload of parseOpenAiSse(response.body)) {
+      providerStream.markFirstEvent();
       const token = contentDelta(payload);
       if (token && !writeNdjson(res, { type: 'token', value: token })) await once(res, 'drain');
     }
@@ -763,18 +771,13 @@ async function handleStreamChat(req, res) {
           llmBody.tool_choice = 'auto';
         }
 
-        const requestProvider = (requestBody) => fetch(resolveChatCompletionsUrl(process.env.OPENAI_BASE_URL), {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-              Accept: 'text/event-stream',
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(requestBody),
-            signal: abortController.signal,
-          });
+        const requestProvider = (requestBody, attempt) => fetchOpenAiStream(requestBody, {
+          signal: abortController.signal,
+          operation: `chat_round_${round}_${attempt}`,
+        });
 
-        let upstreamRes = await requestProvider(llmBody);
+        let providerStream = await requestProvider(llmBody, 'primary');
+        let upstreamRes = providerStream.response;
         if (!upstreamRes.ok && (upstreamRes.status === 400 || upstreamRes.status === 422)) {
           await upstreamRes.text().catch(() => '');
           const compatibleBody = { ...llmBody };
@@ -784,7 +787,8 @@ async function handleStreamChat(req, res) {
             effort: reasoningEffort,
             status: upstreamRes.status,
           });
-          upstreamRes = await requestProvider(compatibleBody);
+          providerStream = await requestProvider(compatibleBody, 'compatible');
+          upstreamRes = providerStream.response;
         }
 
         if (!upstreamRes.ok) {
@@ -819,6 +823,7 @@ async function handleStreamChat(req, res) {
         const toolMarkupFilter = createToolMarkupStreamFilter((text) => thinkParser.feed(text));
 
         for await (const payload of parseOpenAiSse(upstreamRes.body)) {
+          providerStream.markFirstEvent();
           const choice = payload?.choices?.[0];
           if (!choice) continue;
 
